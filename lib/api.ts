@@ -170,6 +170,27 @@ export async function confirmarConteudo(
   return handle(res, "Falha ao confirmar o conteúdo");
 }
 
+/**
+ * Salva uma aula: várias páginas do quadro em um único conteúdo.
+ *
+ * As imagens vão no corpo, e não pelo cache do backend, porque o cache expira
+ * em 300s e uma aula dura bem mais. Resumo e quiz saem da aula inteira porque
+ * o texto concatenado vira o `extracao_original` do conteúdo.
+ */
+export async function criarAula(
+  imagens: Blob[],
+  materiaId: string,
+  textoExtraido: string,
+): Promise<Conteudo> {
+  const form = new FormData();
+  imagens.forEach((imagem, i) => form.append("imagens", imagem, `pagina-${i + 1}.jpg`));
+  form.append("id_materia", materiaId);
+  form.append("texto_extraido", textoExtraido);
+
+  const res = await fetch(`${BASE_URL}/conteudo/aula`, { method: "POST", body: form });
+  return handle(res, "Falha ao salvar a aula");
+}
+
 export async function getRecentes(): Promise<Conteudo[]> {
   const res = await fetch(`${BASE_URL}/dashboard/recentes`);
   return handle(res, "Falha ao carregar recentes");
