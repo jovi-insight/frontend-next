@@ -1,26 +1,766 @@
-@import "tailwindcss";
+/* O design system do JOVI vem inteiro do projeto vanilla (app/styles/jovi.css,
+   cópia de frontend/css/main.css). São ~4.100 linhas de tokens, temas de
+   acessibilidade e componentes já validados — reescrever isso em utilitários
+   não mudaria um pixel na tela.
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+   O Tailwind do create-next-app foi retirado de propósito: o jovi.css aplica
+   font-family com !important em `*`, e o preflight só brigaria com ele. Se um
+   dia fizer falta, dá para reintroduzir importando antes desta linha. */
+@import "./styles/jovi.css";
+
+/* No vanilla estes títulos repetiam o mesmo bloco de style inline em toda
+   página. Como aqui eles viraram JSX, vale uma classe. */
+.secao-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--on-surface-variant);
+  margin: 0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Breadcrumb navegável: no vanilla os níveis eram <a href>, aqui são estado
+   do componente, então precisam ser <button> — mas com cara de link. */
+.link-limpo {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.link-limpo:hover {
+  color: var(--primary);
+}
+
+/* O card inteiro é clicável. Um <button> esticado por cima resolve sem pendurar
+   onClick numa <article> — que teclado e leitor de tela não alcançam. Os botões
+   de renomear/excluir ficam acima dele no eixo z. */
+.card-area-clique {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: inherit;
+}
+
+.card-area-clique:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.card-acoes {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.folder-card:hover .card-acoes,
+.card-acoes:focus-within {
+  opacity: 1;
+}
+
+/* Sem hover (celular) não existe "revelar ao passar o mouse". */
+@media (hover: none) {
+  .card-acoes {
+    opacity: 0.7;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.card-acoes button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.card-acoes .acao-perigo {
+  background: rgba(239, 68, 68, 0.6);
+}
+
+/* Opção de perfil na tela de ajustes: no vanilla era um <li> com onclick; como
+   agora é botão de verdade, ganha estado pressionado e foco visível. */
+.perfil-opcao {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  background: var(--surface-container-low);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  color: var(--on-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.perfil-opcao:hover,
+.perfil-opcao:focus-visible {
+  border-color: var(--primary);
+}
+
+.perfil-opcao.selecionado {
+  border-color: var(--primary);
+  background: var(--surface-high);
+}
+
+/* Legenda do player: fundo próprio porque ela fica sobre o vídeo em telas
+   largas e sobre o fundo da página no celular. */
+.player-legenda {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  min-height: 48px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ─── Câmera (rota /) ──────────────────────────────────── */
+/* A estrutura e as classes vêm do jovi.css (.camera-container, .shutter-*,
+   .camera-mode-selector). Só o que não existia lá entra aqui. */
+
+/* Legenda da aula ao vivo, sobre a imagem. */
+.aula-legenda {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  padding: 14px 18px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Moldura do modo SCAN: mostra onde encaixar o caderno. */
+.scan-frame {
+  position: absolute;
+  inset: 14% 8%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+/* Aviso curto (permissão negada, foto salva). Toque para dispensar. */
+.camera-aviso {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 240px;
+  z-index: 60;
+  margin: 0;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.82);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #fff;
+  font-size: 13px;
+}
+
+/* Grade de composição (regra dos terços). */
+.camera-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.28) 1px, transparent 1px);
+  background-size: 33.333% 33.333%;
+}
+
+/* Proporção: recorta a área útil do viewfinder, como no app de câmera. */
+.proporcao-4-3 .scan-frame { inset: 12% 14%; }
+.proporcao-1-1 .scan-frame { inset: 22% 8%; }
+
+/* Anel de foco, mostrado ao tocar FOCUS. */
+.foco-anel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 84px;
+  height: 84px;
+  margin: -42px 0 0 -42px;
+  border: 2px solid #ffd600;
+  border-radius: 8px;
+  animation: focoPulso 0.9s ease-out;
+}
+
+@keyframes focoPulso {
+  0% { transform: scale(1.4); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: scale(1); opacity: 0.2; }
+}
+
+/* Temporizador: o número grande que conta antes do disparo. */
+.contagem-regressiva {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 96px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* Flash de tela: para aparelhos sem lanterna acessível pela web. */
+.clarao-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.drawer-nota {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--on-surface-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foco-anel { animation: none; opacity: 1; }
+}
+
+/* Selo de gravação do modo VÍDEO, sobre a imagem. */
+.gravando-selo {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Modo LIBRAS ──────────────────────────────────────── */
+/* Os 21 pontos da mão, desenhados sobre a imagem da câmera. */
+.landmarks-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Barra de soletração: a leitura atual, a frase montada e as ações. */
+.libras-barra {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 250px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: #fff;
+}
+
+.libras-leitura {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.libras-letra {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(156, 208, 206, 0.18);
+  color: #9cd0ce;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.libras-conf {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.libras-frase {
+  margin: 0;
+  min-height: 40px;
+  font-size: 15px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.libras-acoes {
+  display: flex;
+  gap: 8px;
+}
+
+.libras-acoes button {
+  flex: 1;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+
+.libras-acoes button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.libras-acoes .acao-perigo {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ─── Ajustes de toque (celular) ───────────────────────────
+   O jovi.css nasceu num layout de desktop: vários controles ficam com 14–27px
+   de altura, abaixo dos 44px que a WCAG 2.5.8 pede para o dedo. Aqui a área
+   clicável cresce sem mexer no tamanho do texto, para o visual não mudar. */
+
+/* Seletor de modo da câmera: o texto tem 11px, mas o alvo não pode ter. */
+.mode-btn {
+  min-height: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ícones do topo da câmera (flash, qualidade, ajustes). */
+.camera-container .top-header > button,
+.camera-container .top-header > a {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+/* Abas da barra inferior. */
+.bottom-nav .nav-item {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Links do breadcrumb e botões-texto: a linha fica com 18px, o alvo com 44. */
+.breadcrumb a,
+.breadcrumb .link-limpo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Botões de ação do cabeçalho de seção (Adicionar vídeo, Regenerar, + Nova). */
+.section-header button,
+.summary-content .text-primary {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Abaixo de 16px o Safari do iOS dá zoom na página ao focar o campo, e depois
+   não volta sozinho — o usuário fica com o layout torto. */
+.form-input,
+textarea.form-input,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="file"],
+select {
+  font-size: 16px;
+}
+
+/* Cartões de pasta/matéria: o alvo é o card inteiro, então o mínimo já é
+   grande; o que faltava era o botão invisível de cima acompanhar o toque. */
+.card-area-clique {
+  touch-action: manipulation;
+}
+
+/* Ícone isolado que precisa de área de toque decente. */
+.alvo-toque {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: -10px; /* devolve o alinhamento óptico que o alvo maior tirou */
+  touch-action: manipulation;
+}
+
+/* Cinco modos não cabem lado a lado em 390px. Um app de câmera resolve isso
+   rolando a barra, e é o que fazemos: sem quebra de linha, sem estourar. */
+.camera-mode-selector {
+  max-width: 100vw;
+  gap: 8px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+}
+
+.camera-mode-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.camera-mode-selector .mode-btn {
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  padding: 0 10px;
+}
+
+@media (min-width: 600px) {
+  .camera-mode-selector {
+    gap: 24px;
+    overflow-x: visible;
+  }
+}
+
+/* ─── Galeria por matéria (biblioteca) ─────────────────────
+   Grade densa de miniaturas quadradas, agrupada por matéria — o formato de
+   álbum que a galeria do celular usa, em vez de uma lista única. */
+
+.secao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.secao-acoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--on-surface);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chip:disabled { opacity: 0.4; cursor: default; }
+.chip-primario { background: var(--primary); color: var(--on-primary); border-color: transparent; }
+.chip-perigo { background: rgba(239, 68, 68, 0.9); color: #fff; border-color: transparent; }
+
+.nota-lixeira {
+  margin: 0 0 20px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--on-surface-variant);
+  opacity: 0.85;
+}
+
+.album { margin-bottom: 28px; }
+
+.album-titulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.album-titulo h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.album-titulo span {
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 3 colunas no celular, como a galeria do sistema; cresce com a tela. */
+.album-grade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+@media (min-width: 600px) { .album-grade { grid-template-columns: repeat(5, 1fr); gap: 6px; } }
+@media (min-width: 1000px) { .album-grade { grid-template-columns: repeat(7, 1fr); gap: 8px; } }
+
+.album-item {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  border-radius: 4px;
+  background: var(--surface-low);
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.album-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.album-item.marcado img { transform: scale(0.88); transition: transform 0.15s; }
+
+.selo-resumo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 13px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.selo-data {
+  position: absolute;
+  left: 4px;
+  bottom: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.marca-selecao {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end start;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.marca-selecao .material-symbols-outlined { font-size: 22px; }
+.marca-selecao.marcada { background: rgba(156, 208, 206, 0.3); color: #9cd0ce; }
+
+/* Cabeçalho de seção: em telas estreitas o botão de ação saía da tela. */
+.section-header {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Rótulo que só aparece quando há largura para ele. */
+.rotulo-largo { display: none; }
+
+@media (min-width: 420px) {
+  .rotulo-largo { display: inline; }
+}
+
+/* ─── Perfis de acessibilidade ─────────────────────────────
+   O jovi.css já trata "baixa-visao" (zoom e contraste). Os outros dois só
+   tinham comportamento em JS e nenhuma regra visual — o que fazia a escolha
+   na tela de Ajustes parecer não surtir efeito. */
+
+/* SURDO — a informação nunca depende só do som.
+   O aviso de que algo é falado ganha destaque, e a legenda da aula fica
+   maior: para quem não ouve, ela não é apoio, é o conteúdo. */
+body[data-perfil="surdo"] .aula-legenda,
+body[data-perfil="surdo"] .player-legenda {
+  font-size: 19px;
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid rgba(156, 208, 206, 0.35);
+}
+
+body[data-perfil="surdo"] .libras-barra {
+  border-color: rgba(156, 208, 206, 0.4);
+}
+
+/* O botão de narrar continua existindo (pode haver resíduo auditivo), mas
+   deixa de competir com o que é visual. */
+body[data-perfil="surdo"] .quiz-ouvir {
+  opacity: 0.55;
+}
+
+/* DISLEXIA / TDAH — menos texto por vez, mais respiro entre as linhas.
+   Espaçamento entre letras e palavras seguindo as recomendações de
+   legibilidade do WCAG 1.4.12 (Text Spacing). */
+body[data-perfil="dislexia-tdah"] {
+  --espaco-linha: 1.9;
+}
+
+body[data-perfil="dislexia-tdah"] .summary-text,
+body[data-perfil="dislexia-tdah"] .focus-frase,
+body[data-perfil="dislexia-tdah"] .quiz-pergunta,
+body[data-perfil="dislexia-tdah"] .quiz-alt,
+body[data-perfil="dislexia-tdah"] .quiz-explicacao {
+  font-size: 17px;
+  line-height: var(--espaco-linha);
+  letter-spacing: 0.04em;
+  word-spacing: 0.14em;
+}
+
+/* Texto corrido longo cansa: uma medida mais curta reduz a chance de pular
+   linha ao voltar do fim para o começo. */
+body[data-perfil="dislexia-tdah"] .summary-text,
+body[data-perfil="dislexia-tdah"] .focus-cartao-texto {
+  max-width: 62ch;
+}
+
+/* Uma coisa de cada vez: as alternativas do quiz ficam mais separadas para
+   o toque não errar e o olho não juntar duas linhas. */
+body[data-perfil="dislexia-tdah"] .quiz-alts {
+  gap: 12px;
+}
+
+body[data-perfil="dislexia-tdah"] .quiz-alt {
+  min-height: 56px;
+}
+
+/* Movimento chama atenção e atrapalha quem tem TDAH. */
+body[data-perfil="dislexia-tdah"] .shutter-button,
+body[data-perfil="dislexia-tdah"] .quiz-alt,
+body[data-perfil="dislexia-tdah"] .library-item {
+  transition: none;
+}
+
+body[data-perfil="dislexia-tdah"] .aula-ponto,
+body[data-perfil="dislexia-tdah"] .pulse {
+  animation: none;
+}
+
+/* ─── Avisos (toasts) ──────────────────────────────────────
+   Ficam acima da .bottom-nav e da barra de controles da câmera, para não
+   cobrirem justamente o botão que o usuário acabou de tocar. */
+.avisos {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.aviso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(20, 20, 22, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  animation: avisoEntra 0.22s ease-out;
+}
+
+.aviso .material-symbols-outlined {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* A cor não é o único sinal: cada tipo tem o seu ícone. */
+.aviso-sucesso { border-color: rgba(46, 158, 91, 0.5); }
+.aviso-sucesso .material-symbols-outlined { color: #57c98a; }
+.aviso-erro { border-color: rgba(208, 83, 83, 0.5); }
+.aviso-erro .material-symbols-outlined { color: #e88a8a; }
+.aviso-info .material-symbols-outlined { color: var(--primary); }
+
+@keyframes avisoEntra {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviso { animation: none; }
+}
+
+@media (min-width: 600px) {
+  .avisos {
+    left: auto;
+    right: 24px;
+    width: 380px;
+  }
 }

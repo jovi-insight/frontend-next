@@ -1,0 +1,159 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+export type LadoCamera = "environment" | "user";
+export type Resolucao = "4K" | "1080P";
+export type Fps = 30 | 60;
+export type ModoFlash = "off" | "on" | "auto";
+
+const RESOLUCOES: Record<Resolucao, { width: number; height: number }> = {
+  "4K": { width: 3840, height: 2160 },
+  "1080P": { width: 1920, height: 1080 },
+};
+
+/**
+ * Abre a câmera e mantém o stream. É um celular na mão do aluno, então a
+ * traseira ("environment") é o padrão — é ela que aponta para o caderno.
+ *
+ * getUserMedia exige localhost ou HTTPS; em HTTP comum o navegador nem
+ * pergunta, só recusa.
+ */
+export function useCamera(ativa = true) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const [lado, setLado] = useState<LadoCamera>("environment");
+  const [resolucao, setResolucao] = useState<Resolucao>("1080P");
+  const [fps, setFps] = useState<Fps>(30);
+  const [erro, setErro] = useState<string | null>(null);
+  const [pronta, setPronta] = useState(false);
+  const [temLanterna, setTemLanterna] = useState(false);
+  /** O que a câmera entregou de fato — pode ser menor que o pedido. */
+  const [real, setReal] = useState<{ largura: number; altura: number; fps: number } | null>(null);
+
+  // Reabre o stream quando lado, resolução ou fps mudam: são constraints de
+  // captura, não ajustes aplicáveis a quente de forma confiável.
+  useEffect(() => {
+    if (!ativa) return;
+    let cancelado = false;
+
+    async function abrir() {
+      setPronta(false);
+      setErro(null);
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Este navegador não expõe a câmera.");
+        }
+        const alvo = RESOLUCOES[resolucao];
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: lado,
+            width: { ideal: alvo.width },
+            height: { ideal: alvo.height },
+            frameRate: { ideal: fps },
+          },
+          audio: false,
+        });
+        if (cancelado) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) videoRef.current.srcObject = stream;
+
+        const track = stream.getVideoTracks()[0];
+        const conf = track?.getSettings?.();
+        setReal(
+          conf
+            ? { largura: conf.width ?? 0, altura: conf.height ?? 0, fps: Math.round(conf.frameRate ?? 0) }
+            : null,
+        );
+        const capacidades = track?.getCapabilities?.() as { torch?: boolean } | undefined;
+        setTemLanterna(Boolean(capacidades?.torch));
+        setPronta(true);
+      } catch (e) {
+        if (cancelado) return;
+        const nome = (e as Error).name;
+        setErro(
+          nome === "NotAllowedError"
+            ? "Permissão de câmera negada. Libere o acesso nas configurações do site."
+            : nome === "NotFoundError"
+              ? "Nenhuma câmera encontrada neste aparelho."
+              : nome === "OverconstrainedError"
+                ? `Esta câmera não suporta ${resolucao} a ${fps}fps. Escolha outra qualidade.`
+                : `${(e as Error).message} — a câmera exige localhost ou HTTPS.`,
+        );
+      }
+    }
+
+    abrir();
+
+    // Sem parar as tracks, a luz da câmera fica acesa depois de sair da tela.
+    return () => {
+      cancelado = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, [ativa, lado, resolucao, fps]);
+
+  const trocarLado = useCallback(
+    () => setLado((l) => (l === "environment" ? "user" : "environment")),
+    [],
+  );
+
+  /** Lanterna de verdade, via constraint `torch`. Só a traseira costuma ter. */
+  const alternarLanterna = useCallback(async (ligar: boolean) => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return false;
+    const capacidades = track.getCapabilities?.() as { torch?: boolean } | undefined;
+    if (!capacidades?.torch) return false;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: ligar } as MediaTrackConstraintSet] });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /** O stream atual, para quem precisa gravar (modo AULA). */
+  const obterStream = useCallback(() => streamRef.current, []);
+
+  /** Quadro atual como JPEG. `largura` 0 mantém a resolução nativa. */
+  const capturar = useCallback(
+    (largura = 0, qualidade = 0.9, filtro = ""): string | null => {
+      const video = videoRef.current;
+      if (!video || !video.videoWidth) return null;
+
+      const escala = largura ? largura / video.videoWidth : 1;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(video.videoWidth * escala);
+      canvas.height = Math.round(video.videoHeight * escala);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      // O realce do viewfinder é um filtro CSS; repeti-lo aqui faz a foto
+      // salva sair igual ao que o aluno viu na tela.
+      if (filtro) ctx.filter = filtro;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", qualidade);
+    },
+    [],
+  );
+
+  return {
+    videoRef,
+    lado,
+    trocarLado,
+    resolucao,
+    setResolucao,
+    fps,
+    setFps,
+    real,
+    temLanterna,
+    alternarLanterna,
+    obterStream,
+    capturar,
+    erro,
+    pronta,
+  };
+}

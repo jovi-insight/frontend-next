@@ -1,0 +1,292 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+// Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
+const PAUSA_DE_PALAVRA = 2000;
+
+const CDN_MEDIAPIPE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands";
+
+export type Landmark = { x: number; y: number; z: number };
+
+type Resultado = {
+  status: "sem-mao" | "incerto" | "movimento" | "estabilizando" | "confirmado";
+  letter?: string;
+  confidence?: number;
+  motion?: { speed: number; moving: boolean };
+};
+
+type Reconhecedor = {
+  process: (landmarks: Landmark[], agora: number) => Resultado;
+  resetTracking: () => void;
+};
+
+type Hands = {
+  setOptions: (o: Record<string, unknown>) => void;
+  onResults: (cb: (r: { multiHandLandmarks?: Landmark[][] }) => void) => void;
+  send: (input: { image: HTMLVideoElement }) => Promise<void>;
+  close?: () => void;
+};
+
+declare global {
+  interface Window {
+    Hands?: new (config: { locateFile: (f: string) => string }) => Hands;
+    LibrasAlphabetRecognizer?: new () => Reconhecedor;
+  }
+}
+
+/**
+ * O MediaPipe Hands roda o modelo pela GPU. Sem WebGL ele cai num caminho de
+ * software que trava a thread principal — a página inteira congela e o usuário
+ * não consegue nem trocar de modo. Verificado num Chrome headless sem GPU:
+ * depois de entrar no modo, nem `1+1` respondia mais.
+ */
+function temWebGL(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl2") ??
+      canvas.getContext("webgl") ??
+      canvas.getContext("experimental-webgl");
+    return Boolean(gl);
+  } catch {
+    return false;
+  }
+}
+
+function carregarScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const tag = document.createElement("script");
+    tag.src = src;
+    tag.async = true;
+    tag.onload = () => resolve();
+    tag.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
+    document.head.appendChild(tag);
+  });
+}
+
+/**
+ * Reconhecimento do alfabeto manual de Libras.
+ *
+ * O rastreamento vem do MediaPipe Hands (21 pontos da mão) e a classificação
+ * do mesmo `libras-recognizer.js` do projeto vanilla, servido de
+ * /vendor — são 1.066 linhas de geometria já validadas, e reescrevê-las em
+ * TypeScript só traria risco de divergência.
+ */
+export function useLibras(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  ativo: boolean,
+) {
+  const [letra, setLetra] = useState<string | null>(null);
+  const [confianca, setConfianca] = useState(0);
+  const [emMovimento, setEmMovimento] = useState(false);
+  const [palavras, setPalavras] = useState<string[]>([]);
+  const [soletrando, setSoletrando] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const handsRef = useRef<Hands | null>(null);
+  const recRef = useRef<Reconhecedor | null>(null);
+  const loopRef = useRef<number | null>(null);
+  const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ultimaLetraRef = useRef<string | null>(null);
+  const liberadoRef = useRef(true);
+
+  /** Desenha os 21 pontos e as conexões da mão sobre o vídeo. */
+  const desenhar = useCallback((pontos: Landmark[] | null) => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+    if (canvas.width !== video.videoWidth) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!pontos) return;
+
+    // Dedos: as cadeias de índices que o MediaPipe usa para a mão.
+    const dedos = [
+      [0, 1, 2, 3, 4],
+      [0, 5, 6, 7, 8],
+      [0, 9, 10, 11, 12],
+      [0, 13, 14, 15, 16],
+      [0, 17, 18, 19, 20],
+    ];
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 3;
+    for (const dedo of dedos) {
+      ctx.beginPath();
+      dedo.forEach((i, ordem) => {
+        const p = pontos[i];
+        const x = p.x * canvas.width;
+        const y = p.y * canvas.height;
+        if (ordem === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#9cd0ce";
+    for (const p of pontos) {
+      ctx.beginPath();
+      ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }, [videoRef]);
+
+  /** Uma letra confirmada só entra de novo depois que a mão sai da pose. */
+  const registrarLetra = useCallback((nova: string) => {
+    if (nova === ultimaLetraRef.current && !liberadoRef.current) return;
+    ultimaLetraRef.current = nova;
+    liberadoRef.current = false;
+
+    setSoletrando((atual) => atual + nova);
+    if (pausaRef.current) clearTimeout(pausaRef.current);
+    pausaRef.current = setTimeout(() => {
+      setSoletrando((atual) => {
+        if (atual) setPalavras((ps) => [...ps, atual]);
+        return "";
+      });
+    }, PAUSA_DE_PALAVRA);
+  }, []);
+
+  useEffect(() => {
+    if (!ativo) return;
+    let vivo = true;
+
+    (async () => {
+      setCarregando(true);
+      setErro(null);
+      try {
+        if (!temWebGL()) {
+          throw new Error(
+            "Este navegador não tem aceleração gráfica (WebGL), e o rastreamento da mão travaria a página. Ative a aceleração por hardware nas configurações do navegador.",
+          );
+        }
+        await carregarScript(`${CDN_MEDIAPIPE}/hands.min.js`);
+        await carregarScript("/vendor/libras-recognizer.js");
+        if (!vivo) return;
+
+        if (!window.Hands || !window.LibrasAlphabetRecognizer) {
+          throw new Error("Rastreamento de mão indisponível.");
+        }
+
+        const hands = new window.Hands({ locateFile: (f) => `${CDN_MEDIAPIPE}/${f}` });
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.75,
+          minTrackingConfidence: 0.75,
+        });
+
+        const rec = new window.LibrasAlphabetRecognizer();
+        recRef.current = rec;
+
+        hands.onResults((r) => {
+          if (!vivo) return;
+          const pontos = r.multiHandLandmarks?.[0] ?? null;
+          desenhar(pontos);
+
+          if (!pontos) {
+            rec.resetTracking();
+            setLetra(null);
+            setEmMovimento(false);
+            liberadoRef.current = true; // mão saiu: libera repetir a letra
+            return;
+          }
+
+          const saida = rec.process(pontos, performance.now());
+          setEmMovimento(Boolean(saida.motion?.moving));
+
+          if (saida.status === "confirmado" && saida.letter) {
+            setLetra(saida.letter);
+            setConfianca(saida.confidence ?? 0);
+            registrarLetra(saida.letter);
+          } else if (saida.status === "estabilizando" && saida.letter) {
+            setLetra(saida.letter);
+            setConfianca(saida.confidence ?? 0);
+          } else if (saida.status === "incerto" || saida.status === "sem-mao") {
+            setLetra(null);
+            liberadoRef.current = true;
+          }
+        });
+
+        handsRef.current = hands;
+        setCarregando(false);
+
+        // Um quadro por vez: enviar antes do anterior terminar enfileira
+        // trabalho e derruba o FPS no celular.
+        let ocupado = false;
+        const passo = async () => {
+          const video = videoRef.current;
+          if (vivo && video?.videoWidth && !ocupado) {
+            ocupado = true;
+            try {
+              await hands.send({ image: video });
+            } catch {
+              /* quadro perdido não interrompe o laço */
+            }
+            ocupado = false;
+          }
+          if (vivo) loopRef.current = requestAnimationFrame(passo);
+        };
+        loopRef.current = requestAnimationFrame(passo);
+      } catch (e) {
+        if (vivo) {
+          setErro((e as Error).message);
+          setCarregando(false);
+        }
+      }
+    })();
+
+    return () => {
+      vivo = false;
+      if (loopRef.current) cancelAnimationFrame(loopRef.current);
+      if (pausaRef.current) clearTimeout(pausaRef.current);
+      handsRef.current?.close?.();
+      handsRef.current = null;
+    };
+  }, [ativo, desenhar, registrarLetra, videoRef]);
+
+  const frase = [...palavras, soletrando].filter(Boolean).join(" ");
+
+  const apagarUltima = useCallback(() => {
+    setSoletrando((atual) => {
+      if (atual) return atual.slice(0, -1);
+      setPalavras((ps) => ps.slice(0, -1));
+      return "";
+    });
+  }, []);
+
+  const limpar = useCallback(() => {
+    setPalavras([]);
+    setSoletrando("");
+    setLetra(null);
+    ultimaLetraRef.current = null;
+  }, []);
+
+  const falar = useCallback(() => {
+    if (!frase || typeof speechSynthesis === "undefined") return;
+    speechSynthesis.cancel();
+    const fala = new SpeechSynthesisUtterance(frase);
+    fala.lang = "pt-BR";
+    speechSynthesis.speak(fala);
+  }, [frase]);
+
+  return {
+    canvasRef,
+    letra,
+    confianca,
+    emMovimento,
+    frase,
+    soletrando,
+    carregando,
+    erro,
+    apagarUltima,
+    limpar,
+    falar,
+  };
+}
