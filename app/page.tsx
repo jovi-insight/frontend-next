@@ -17,7 +17,7 @@ import { useCamera, type ModoFlash } from "@/lib/use-camera";
 import { useAula } from "@/lib/use-aula";
 import { useGravador } from "@/lib/use-gravador";
 import { useLibras } from "@/lib/use-libras";
-import { analisarImagem, criarAula } from "@/lib/api";
+import { analisarImagem } from "@/lib/api";
 import {
   criarPagina, marcarTexto, marcarFalha, removerPagina, textoDaAula, janelaDeAula, type Pagina,
 } from "@/lib/paginas-aula";
