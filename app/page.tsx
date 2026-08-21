@@ -17,7 +17,10 @@ import { useCamera, type ModoFlash } from "@/lib/use-camera";
 import { useAula } from "@/lib/use-aula";
 import { useGravador } from "@/lib/use-gravador";
 import { useLibras } from "@/lib/use-libras";
-import { analisarImagem } from "@/lib/api";
+import { analisarImagem, criarAula } from "@/lib/api";
+import {
+  criarPagina, marcarTexto, marcarFalha, removerPagina, textoDaAula, janelaDeAula, type Pagina,
+} from "@/lib/paginas-aula";
 import { adicionarVideo, salvarTranscricao } from "@/lib/video-library";
 import { gravarLocalStorage, useLocalStorage } from "@/lib/use-local-storage";
 import { avisar } from "@/lib/avisos";
@@ -51,6 +54,8 @@ function CameraConteudo() {
   const [ultimaFoto, setUltimaFoto] = useState<string | null>(null);
   const [focando, setFocando] = useState(false);
   const [segundosVideo, setSegundosVideo] = useState(0);
+  // Páginas da aula em captura. Ficam no aparelho até o aluno concluir.
+  const [paginas, setPaginas] = useState<Pagina[]>([]);
 
   const camera = useCamera();
   const aula = useAula();
@@ -79,6 +84,15 @@ function CameraConteudo() {
     if (aula.erro) avisar(aula.erro, "erro");
   }, [aula.erro]);
 
+  // Fechar a aba com páginas capturadas perderia a aula inteira: as fotos só
+  // vivem em memória até o envio.
+  useEffect(() => {
+    if (paginas.length === 0) return;
+    const aoSair = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", aoSair);
+    return () => window.removeEventListener("beforeunload", aoSair);
+  }, [paginas.length]);
+
   const filtroAtual = ajustes.realce ? FILTRO_REALCE : "";
 
   /** Captura de fato: já passou o temporizador e o flash. */
@@ -97,26 +111,19 @@ function CameraConteudo() {
       return;
     }
 
-    setOcupado("Enviando para o servidor…");
+    // SCAN acumula páginas: a foto entra na tira e a OCR corre em segundo
+    // plano, para o aluno continuar fotografando o quadro seguinte.
+    const pagina = criarPagina(imagem, miniatura ?? imagem);
+    setPaginas((antes) => [...antes, pagina]);
+
     try {
       const resultado = await analisarImagem(await (await fetch(imagem)).blob());
-      gravarLocalStorage(
-        "scan_data",
-        JSON.stringify({
-          cache_id: resultado.cache_id,
-          texto_extraido: resultado.texto_extraido || "",
-          materia_sugerida_id: resultado.materia_sugerida_id ?? null,
-        }),
-      );
-      // A imagem cheia estoura a cota do localStorage; guarda a miniatura.
-      if (miniatura) gravarLocalStorage("scan_image", miniatura);
-      router.push("/organize");
+      setPaginas((antes) => marcarTexto(antes, pagina.id, resultado.texto_extraido || ""));
     } catch (e) {
-      avisar((e as Error).message, "erro");
-    } finally {
-      setOcupado(null);
+      console.warn("OCR da página falhou:", e);
+      setPaginas((antes) => marcarFalha(antes, pagina.id));
     }
-  }, [camera, filtroAtual, modo, router]);
+  }, [camera, filtroAtual, modo]);
 
   /** Flash: lanterna quando o aparelho tem, clarão de tela quando não tem. */
   const comFlash = useCallback(
@@ -134,6 +141,36 @@ function CameraConteudo() {
     },
     [camera, flash],
   );
+
+  /** Envia as páginas como uma aula e segue para organizar. */
+  async function concluirAula() {
+    if (!paginas.length) return;
+    if (paginas.some((p) => p.estado === "lendo")) {
+      avisar("Ainda estou lendo uma das páginas. Um instante.", "info");
+      return;
+    }
+
+    setOcupado(`Salvando ${paginas.length} páginas…`);
+    try {
+      // As imagens são data URLs; o backend recebe binário.
+      const blobs = await Promise.all(
+        paginas.map(async (p) => (await fetch(p.imagem)).blob()),
+      );
+      gravarLocalStorage(
+        "aula_pendente",
+        JSON.stringify({ texto: textoDaAula(paginas), paginas: blobs.length }),
+      );
+      // A escolha da matéria continua na tela de organizar; guardamos as
+      // imagens aqui até lá.
+      janelaDeAula.blobs = blobs;
+      router.push("/organize?aula=1");
+    } catch (e) {
+      // Falhou o envio: as páginas continuam na tira, nada se perde.
+      avisar((e as Error).message, "erro");
+    } finally {
+      setOcupado(null);
+    }
+  }
 
   async function aoDisparar() {
     setGaveta(null);
@@ -444,6 +481,38 @@ function CameraConteudo() {
         </div>
       )}
 
+      {modo === "SCAN" && paginas.length > 0 && (
+        <div className="tira-paginas">
+          <div className="tira-lista">
+            {paginas.map((p, i) => (
+              <div key={p.id} className={`tira-item estado-${p.estado}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.miniatura} alt={`Página ${i + 1}`} />
+                <span className="tira-numero">{i + 1}</span>
+                {p.estado === "lendo" && <span className="tira-spinner" aria-hidden="true" />}
+                {p.estado === "falhou" && (
+                  <span className="material-symbols-outlined tira-alerta" title="Não foi possível ler">
+                    error
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="tira-remover"
+                  onClick={() => setPaginas((antes) => removerPagina(antes, p.id))}
+                  aria-label={`Descartar página ${i + 1}`}
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button type="button" className="tira-concluir" onClick={concluirAula}>
+            Concluir ({paginas.length})
+          </button>
+        </div>
+      )}
+
       <div className="camera-mode-selector">
         {MODOS.map((m) => (
           <button
@@ -453,6 +522,14 @@ function CameraConteudo() {
             aria-pressed={modo === m}
             disabled={ocupadoComGravacao && m !== modo}
             onClick={() => {
+              if (
+                paginas.length > 0 &&
+                m !== modo &&
+                !confirm(`Descartar as ${paginas.length} páginas capturadas?`)
+              ) {
+                return;
+              }
+              if (m !== modo) setPaginas([]);
               setModo(m);
               setGaveta(null);
             }}
