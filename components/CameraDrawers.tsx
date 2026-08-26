@@ -52,7 +52,7 @@ export function GavetaAjustes({
           aria-pressed={ajustes.grade}
         >
           <span className="material-symbols-outlined">grid_on</span>
-          <span>GRID</span>
+          <span>GRADE</span>
         </button>
 
         <button
@@ -61,7 +61,7 @@ export function GavetaAjustes({
           aria-pressed={ajustes.timer > 0}
         >
           <span className="material-symbols-outlined">timer</span>
-          <span>{ajustes.timer ? `${ajustes.timer}S TIMER` : "TIMER"}</span>
+          <span>{ajustes.timer ? `${ajustes.timer}S` : "TEMPO"}</span>
         </button>
 
         <button
@@ -78,12 +78,12 @@ export function GavetaAjustes({
           aria-pressed={ajustes.realce}
         >
           <span className="material-symbols-outlined">brightness_6</span>
-          <span>ENHANCE</span>
+          <span>REALCE</span>
         </button>
 
         <button className="settings-square" onClick={onFocar}>
           <span className="material-symbols-outlined">center_focus_strong</span>
-          <span>FOCUS</span>
+          <span>FOCO</span>
         </button>
       </div>
     </div>

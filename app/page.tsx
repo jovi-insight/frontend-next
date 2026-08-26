@@ -154,6 +154,7 @@ function CameraConteudo() {
       // Uma de cada vez, na ordem: em paralelo o Gemini responde 502 nas
       // excedentes. Uma segunda tentativa cobre o 503 passageiro dele.
       let lidas = paginas;
+      let materiaSugeridaId: string | null = null;
       for (const [i, pagina] of paginas.entries()) {
         setOcupado(`Lendo página ${i + 1} de ${paginas.length}…`);
         setPaginas((antes) => marcarLendo(antes, pagina.id));
@@ -161,7 +162,11 @@ function CameraConteudo() {
         let texto: string | null = null;
         for (const tentativa of [1, 2]) {
           try {
-            texto = (await analisarImagem(blob)).texto_extraido || "";
+            const analise = await analisarImagem(blob);
+            texto = analise.texto_extraido || "";
+            if (analise.materia_sugerida_id && !materiaSugeridaId) {
+              materiaSugeridaId = analise.materia_sugerida_id;
+            }
             break;
           } catch (e) {
             console.warn(`OCR da página ${i + 1} falhou (tentativa ${tentativa}):`, e);
@@ -201,8 +206,17 @@ function CameraConteudo() {
       );
       gravarLocalStorage(
         "aula_pendente",
-        JSON.stringify({ texto: textoDaAula(lidas), paginas: blobs.length }),
+        JSON.stringify({
+          texto: textoDaAula(lidas),
+          paginas: blobs.length,
+          materia_sugerida_id: materiaSugeridaId,
+        }),
       );
+      if (lidas.length > 0 && lidas[0].miniatura) {
+        try {
+          gravarLocalStorage("scan_image", lidas[0].miniatura);
+        } catch (_) {}
+      }
       // A escolha da matéria continua na tela de organizar; guardamos as
       // imagens aqui até lá.
       janelaDeAula.blobs = blobs;

@@ -26,6 +26,8 @@ export type VideoItem = {
   createdAt: string;
   blob: Blob;
   transcription: Transcricao | null;
+  summary?: string | null;
+  conteudoId?: string | null;
 };
 
 function abrirBanco(): Promise<IDBDatabase> {
@@ -116,6 +118,17 @@ export async function salvarTranscricao(
     model: transcricao.model ?? null,
     updatedAt: new Date().toISOString(),
   };
+  await transacao("readwrite", (store) => store.put(item));
+  return item;
+}
+
+export async function salvarResumoVideo(
+  id: string,
+  summary: string,
+): Promise<VideoItem> {
+  const item = await obterVideo(id);
+  if (!item) throw new Error("Vídeo não encontrado na galeria.");
+  item.summary = summary;
   await transacao("readwrite", (store) => store.put(item));
   return item;
 }

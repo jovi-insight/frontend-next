@@ -16,6 +16,14 @@ type ScanData = {
   materia_sugerida_id: string | null;
 };
 
+type AulaPendente = {
+  texto: string;
+  paginas: number;
+  origem?: string;
+  video?: string;
+  materia_sugerida_id?: string | null;
+};
+
 function OrganizeConteudo() {
   const router = useRouter();
   const scanBruto = useLocalStorage("scan_data");
@@ -28,15 +36,7 @@ function OrganizeConteudo() {
   const aulaBruta = useLocalStorage("aula_pendente");
   const aula = useMemo(() => {
     try {
-      return aulaBruta
-        ? (JSON.parse(aulaBruta) as {
-            texto: string;
-            paginas: number;
-            /** "transcricao" = Modo Aula; ausente = fotos do quadro. */
-            origem?: string;
-            video?: string;
-          })
-        : null;
+      return aulaBruta ? (JSON.parse(aulaBruta) as AulaPendente) : null;
     } catch {
       return null;
     }
@@ -55,6 +55,7 @@ function OrganizeConteudo() {
   const [texto, setTexto] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarTodas, setMostrarTodas] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -66,26 +67,47 @@ function OrganizeConteudo() {
     };
   }, []);
 
-  // O texto vem da OCR e pode ser corrigido antes de salvar; a matéria
-  // sugerida pela IA já vem marcada.
-  const textoInicial = scan?.texto_extraido ?? "";
-  const sugerida = scan?.materia_sugerida_id ?? null;
+  // Matéria sugerida pela IA (vem do scan individual ou da análise em lote)
+  const sugerida = useMemo(() => {
+    if (ehAula && aula?.materia_sugerida_id) return aula.materia_sugerida_id;
+    return scan?.materia_sugerida_id ?? null;
+  }, [ehAula, aula?.materia_sugerida_id, scan?.materia_sugerida_id]);
+
   const [iniciado, setIniciado] = useState(false);
   if (!iniciado && (scan || (ehAula && aula))) {
-    // Inicialização derivada do primeiro render com dados — sem efeito, e
-    // portanto sem a renderização em cascata que o setState num efeito causa.
-    setTexto(ehAula && aula ? aula.texto : textoInicial);
-    setEscolhida(sugerida);
+    setTexto(ehAula && aula ? aula.texto : scan?.texto_extraido ?? "");
+    if (sugerida) {
+      setEscolhida(sugerida);
+    }
     setIniciado(true);
   }
 
+  // Se a sugestão carregar depois ou se escolhida ainda estiver vazia, sincroniza com a recomendação da IA
+  useEffect(() => {
+    if (sugerida && !escolhida) {
+      setEscolhida(sugerida);
+    }
+  }, [sugerida, escolhida]);
+
+  // Ordena para que a matéria sugerida fique no topo
+  const materiasOrdenadas = useMemo(() => {
+    return [...materias].sort((a, b) => {
+      if (a.id === sugerida) return -1;
+      if (b.id === sugerida) return 1;
+      return a.nome.localeCompare(b.nome);
+    });
+  }, [materias, sugerida]);
+
+  const materiasExibidas = mostrarTodas ? materiasOrdenadas : materiasOrdenadas.slice(0, 3);
+
   async function novaMateria() {
-    const nome = prompt("Nome da nova matéria:");
+    const nome = prompt("Digite o nome da nova matéria/pasta:");
     if (!nome?.trim()) return;
     try {
       const criada = await criarMateria(nome.trim());
       setMaterias((antes) => [...antes, criada]);
       setEscolhida(criada.id);
+      setMostrarTodas(true);
       avisar("Nova matéria criada com sucesso!", "sucesso");
     } catch (e) {
       avisar((e as Error).message, "erro");
@@ -166,67 +188,147 @@ function OrganizeConteudo() {
       <TopHeader titulo="Organizar" voltarPara="/" />
 
       <main className="container archive-main">
-        <div className="section-header">
-          <div className="section-title">
-            <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
-            <h2>{ehAula && aula?.origem === "transcricao" ? "Guardar a aula" : "Onde guardar?"}</h2>
-          </div>
-        </div>
-
-        {imagem && !ehAula && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imagem}
-            alt="Documento capturado"
-            className="doc-original-image"
-            style={{ marginBottom: 24 }}
-          />
+        {imagem && (
+          <section style={{ marginBottom: 24 }}>
+            <div
+              style={{
+                width: "100%",
+                aspectRatio: "16 / 9",
+                borderRadius: 16,
+                overflow: "hidden",
+                background: "black",
+                border: "1px solid rgba(72, 72, 72, 0.3)",
+                marginBottom: 12,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imagem}
+                alt="Prévia da captura"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </div>
+            <div
+              className="flex items-center gap-2"
+              style={{ color: "var(--on-surface-variant)", fontSize: 11, fontWeight: 700 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                data_object
+              </span>
+              <p style={{ textTransform: "uppercase", letterSpacing: "1px" }}>
+                {texto ? `Conteúdo detectado (${texto.length} caracteres)` : "Detectando conteúdo…"}
+              </p>
+            </div>
+          </section>
         )}
 
         <label className="form-label" htmlFor="texto-ocr">
           {ehAula && aula
             ? aula.origem === "transcricao"
               ? "Transcrição da aula — corrija se precisar"
-              : `Texto de ${aula.paginas} páginas — corrija se precisar`
-            : "Texto reconhecido — corrija se precisar"}
+              : `Texto extraído (${aula.paginas} páginas) — corrija se precisar`
+            : "Texto extraído — corrija se precisar"}
         </label>
         <textarea
           id="texto-ocr"
           className="form-input"
-          rows={8}
+          rows={6}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          style={{ width: "100%", marginBottom: 24, resize: "vertical" }}
+          style={{ width: "100%", marginBottom: 28, resize: "vertical" }}
         />
 
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="secao-titulo">Matéria</h3>
-          <button type="button" className="link-limpo text-primary" onClick={novaMateria}>
-            + Nova
-          </button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
-          {materias.map((m) => (
+        <section style={{ marginBottom: 36 }}>
+          <div className="section-header" style={{ marginBottom: 16 }}>
+            <div className="section-title">
+              <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 800 }}>Selecionar Matéria</h2>
+                <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginTop: 2 }}>
+                  Determine a pasta de destino para este documento.
+                </p>
+              </div>
+            </div>
             <button
-              key={m.id}
               type="button"
-              className={`perfil-opcao${escolhida === m.id ? " selecionado" : ""}`}
-              aria-pressed={escolhida === m.id}
-              onClick={() => setEscolhida(m.id)}
+              className="link-limpo text-primary"
+              onClick={novaMateria}
+              title="Criar nova matéria"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontWeight: 700,
+                fontSize: 13,
+              }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-                school
+                add_box
               </span>
-              <span style={{ flex: 1, textAlign: "left", fontSize: 13 }}>{m.nome}</span>
-              {m.id === sugerida && (
-                <span style={{ fontSize: 9, opacity: 0.6, textTransform: "uppercase" }}>
-                  sugerida
-                </span>
-              )}
+              Nova
             </button>
-          ))}
-        </div>
+          </div>
+
+          <div className="materia-list">
+            {materiasExibidas.map((m) => {
+              const isSuggested = m.id === sugerida;
+              const isSelected = m.id === escolhida;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`materia-option${isSelected ? " selected" : ""}`}
+                  aria-pressed={isSelected}
+                  onClick={() => setEscolhida(m.id)}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div className="option-icon">
+                      <span className="material-symbols-outlined">folder</span>
+                    </div>
+                    <div>
+                      <span style={{ display: "block", fontSize: 14, fontWeight: 700 }}>
+                        {m.nome}
+                      </span>
+                      {isSuggested && (
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 8,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            color: "var(--primary)",
+                            letterSpacing: "1px",
+                          }}
+                        >
+                          Sugestão IA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {isSelected ? (
+                    <span className="material-symbols-outlined" style={{ color: "var(--primary)" }}>
+                      check_circle
+                    </span>
+                  ) : (
+                    <span className="material-symbols-outlined" style={{ opacity: 0.3 }}>
+                      chevron_right
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {!mostrarTodas && materiasOrdenadas.length > 3 && (
+              <button
+                type="button"
+                className="see-more-btn"
+                onClick={() => setMostrarTodas(true)}
+              >
+                Ver mais {materiasOrdenadas.length - 3} pastas
+              </button>
+            )}
+          </div>
+        </section>
 
         {erro && (
           <p role="alert" style={{ color: "var(--error)", fontSize: 12, marginBottom: 16 }}>
@@ -239,9 +341,18 @@ function OrganizeConteudo() {
           className={`quiz-gerar${salvando ? " is-loading" : ""}`}
           onClick={confirmar}
           disabled={!escolhida || salvando}
-          style={{ width: "100%", justifyContent: "center" }}
+          style={{ width: "100%", justifyContent: "center", padding: "18px" }}
         >
-          {salvando ? "Buscando vídeos recomendados…" : "Confirmar e salvar"}
+          {salvando ? (
+            "Buscando vídeos recomendados…"
+          ) : (
+            <>
+              Confirmar e salvar
+              <span className="material-symbols-outlined" style={{ fontSize: 18, marginLeft: 8 }}>
+                folder_shared
+              </span>
+            </>
+          )}
         </button>
       </main>
     </>

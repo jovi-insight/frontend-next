@@ -61,7 +61,7 @@ function SettingsConteudo() {
         <div className="section-header">
           <div className="section-title">
             <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
-            <h2>Account &amp; Storage</h2>
+            <h2>Conta e Armazenamento</h2>
           </div>
         </div>
 

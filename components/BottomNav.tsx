@@ -7,9 +7,9 @@ import { usePathname } from "next/navigation";
 // isso sozinho — é o único motivo de o componente ser client.
 const ITENS = [
   { href: "/", icone: "document_scanner", rotulo: "Scan" },
-  { href: "/library", icone: "history", rotulo: "Recent" },
-  { href: "/folders", icone: "folder_open", rotulo: "Folders" },
-  { href: "/settings", icone: "settings", rotulo: "Settings" },
+  { href: "/library", icone: "history", rotulo: "Recentes" },
+  { href: "/folders", icone: "folder_open", rotulo: "Pastas" },
+  { href: "/settings", icone: "settings", rotulo: "Ajustes" },
 ];
 
 export default function BottomNav() {

@@ -89,7 +89,7 @@ function LibraryConteudo() {
           <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
             chevron_right
           </span>
-          <span className="text-primary">{verLixeira ? "Lixeira" : "Recents"}</span>
+          <span className="text-primary">{verLixeira ? "Lixeira" : "Recentes"}</span>
         </nav>
 
         {!verLixeira && <GaleriaVideos />}

@@ -181,7 +181,7 @@ function SummaryConteudo({ id }: { id: string }) {
       <main className="container archive-main sem-topbar">
         <nav className="breadcrumb" id="summary-breadcrumb">
           <Link href="/library" style={{ textDecoration: "none", color: "inherit" }}>
-            Recents
+            Recentes
           </Link>
           <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
             chevron_right
@@ -363,7 +363,7 @@ function SummaryConteudo({ id }: { id: string }) {
                   article
                 </span>
                 <span className="secao-titulo" style={{ flex: 1 }}>
-                  Texto extraído (OCR)
+                  Texto extraído
                 </span>
               </summary>
               <div style={{ padding: 20, background: "var(--surface-container-low)" }}>

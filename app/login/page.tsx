@@ -98,7 +98,7 @@ export default function LoginPage() {
         >
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              Email Address
+              Endereço de E-mail
             </label>
             <div className="form-input-container">
               <span className="material-symbols-outlined">mail</span>
@@ -123,7 +123,7 @@ export default function LoginPage() {
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Access Key
+              Senha de Acesso
             </label>
             <div className="form-input-container">
               <span className="material-symbols-outlined">lock</span>
@@ -147,7 +147,7 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" className="primary-btn">
-            Authorize Access
+            Entrar
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
               login
             </span>
