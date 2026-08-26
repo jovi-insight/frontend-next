@@ -3,10 +3,10 @@ import {
   criarPagina, marcarTexto, marcarFalha, removerPagina, textoDaAula,
 } from "../.teste-build/paginas-aula.js";
 
-// Uma página nasce "lendo": a OCR só volta depois.
+// Uma página nasce "pendente": a OCR só roda ao concluir a aula.
 {
   const p = criarPagina("data:image/jpeg;base64,AAA", "data:image/jpeg;base64,BB");
-  assert.strictEqual(p.estado, "lendo");
+  assert.strictEqual(p.estado, "pendente");
   assert.strictEqual(p.texto, null);
   assert.ok(p.id, "precisa de id para casar a resposta da OCR com a página");
 }

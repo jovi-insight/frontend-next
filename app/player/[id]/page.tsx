@@ -4,12 +4,9 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
 import TopHeader from "@/components/TopHeader";
-import { obterVideo, salvarTranscricao, type VideoItem, type Segmento } from "@/lib/video-library";
+import { obterVideo, salvarTranscricao, type VideoItem } from "@/lib/video-library";
 import { transcreverMidia } from "@/lib/libras-ml";
-
-function indiceDoSegmento(segmentos: Segmento[], tempo: number): number {
-  return segmentos.findIndex((s) => tempo >= s.start && tempo < s.end);
-}
+import { criarVtt } from "@/lib/video-vtt";
 
 function PlayerConteudo({ id }: { id: string }) {
   const [item, setItem] = useState<VideoItem | null>(null);
@@ -17,7 +14,6 @@ function PlayerConteudo({ id }: { id: string }) {
   const [urlVideo, setUrlVideo] = useState<string | null>(null);
   const [legendaLigada, setLegendaLigada] = useState(false);
   const [transcrevendo, setTranscrevendo] = useState(false);
-  const [tempo, setTempo] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -45,8 +41,25 @@ function PlayerConteudo({ id }: { id: string }) {
   }, [id]);
 
   const segmentos = useMemo(() => item?.transcription?.segments ?? [], [item]);
-  const atual = indiceDoSegmento(segmentos, tempo);
-  const legenda = atual >= 0 ? segmentos[atual].text : "";
+
+  // A faixa vira um object URL próprio, refeito quando a transcrição muda.
+  const urlLegenda = useMemo(() => {
+    if (!segmentos.length) return null;
+    return URL.createObjectURL(new Blob([criarVtt(segmentos)], { type: "text/vtt" }));
+  }, [segmentos]);
+
+  useEffect(() => {
+    return () => {
+      if (urlLegenda) URL.revokeObjectURL(urlLegenda);
+    };
+  }, [urlLegenda]);
+
+  // O modo só pode ser ajustado depois que o navegador anexa a faixa: o objeto
+  // .track nasce aí, e atribuir antes é ignorado sem erro.
+  useEffect(() => {
+    const faixa = videoRef.current?.textTracks?.[0];
+    if (faixa) faixa.mode = legendaLigada ? "showing" : "disabled";
+  }, [legendaLigada, urlLegenda]);
 
   const transcrever = useCallback(async () => {
     if (!item) return false;
@@ -91,7 +104,7 @@ function PlayerConteudo({ id }: { id: string }) {
 
   return (
     <>
-      <TopHeader titulo="Player" />
+      <TopHeader titulo="Player" voltarPara="/library" />
 
       <main className="container archive-main">
         <nav className="breadcrumb">
@@ -110,15 +123,20 @@ function PlayerConteudo({ id }: { id: string }) {
             src={urlVideo}
             controls
             playsInline
+            className="player-video"
             style={{ width: "100%", borderRadius: 16, background: "#000" }}
-            onTimeUpdate={(e) => setTempo(e.currentTarget.currentTime)}
-          />
-        )}
-
-        {legendaLigada && (
-          <p className="player-legenda" aria-live="polite">
-            {legenda}
-          </p>
+          >
+            {urlLegenda && (
+              <track
+                key={urlLegenda}
+                kind="captions"
+                srcLang="pt-BR"
+                label="Português (transcrição JOVI)"
+                src={urlLegenda}
+                default={legendaLigada}
+              />
+            )}
+          </video>
         )}
 
         <div className="quiz-controles" style={{ marginTop: 16 }}>

@@ -6,7 +6,12 @@
  * 300s e uma aula dura bem mais.
  */
 
-export type EstadoPagina = "lendo" | "pronta" | "falhou";
+/**
+ * "pendente" é o estado de quem acabou de ser fotografada: a OCR só roda ao
+ * concluir a aula. Ler durante a captura disparava várias chamadas de IA em
+ * paralelo, e o Gemini derrubava as excedentes com 502.
+ */
+export type EstadoPagina = "pendente" | "lendo" | "pronta" | "falhou";
 
 export type Pagina = {
   id: string;
@@ -26,7 +31,7 @@ export function criarPagina(imagem: string, miniatura: string): Pagina {
     imagem,
     miniatura,
     texto: null,
-    estado: "lendo",
+    estado: "pendente",
   };
 }
 
@@ -34,6 +39,10 @@ export function marcarTexto(paginas: Pagina[], id: string, texto: string): Pagin
   return paginas.map((p) =>
     p.id === id ? { ...p, texto: texto.trim(), estado: "pronta" as const } : p,
   );
+}
+
+export function marcarLendo(paginas: Pagina[], id: string): Pagina[] {
+  return paginas.map((p) => (p.id === id ? { ...p, estado: "lendo" as const } : p));
 }
 
 export function marcarFalha(paginas: Pagina[], id: string): Pagina[] {

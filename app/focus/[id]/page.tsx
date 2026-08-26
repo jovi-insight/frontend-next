@@ -6,7 +6,10 @@ import GuardaSessao from "@/components/GuardaSessao";
 import { getConteudo, narrar } from "@/lib/api";
 import { contarPalavras, dividirEmBlocos, type Bloco } from "@/lib/focus-blocks";
 
-const BLOCOS_ATE_PAUSA = 5;
+/** Um cartão por frase: é o que separa o Modo Foco de rolar o resumo inteiro. */
+const PALAVRAS_POR_CARTAO = 1;
+/** ~15 frases ≈ o antigo bloco de 5 cartões de 150 palavras. */
+const BLOCOS_ATE_PAUSA = 15;
 const SEGUNDOS_DE_PAUSA = 30;
 
 type Fase = "carregando" | "erro" | "intro" | "lendo" | "pausa" | "fim";
@@ -38,7 +41,7 @@ function FocusConteudo({ id }: { id: string }) {
     };
   }, [id]);
 
-  const blocos = useMemo<Bloco[]>(() => dividirEmBlocos(texto), [texto]);
+  const blocos = useMemo<Bloco[]>(() => dividirEmBlocos(texto, PALAVRAS_POR_CARTAO), [texto]);
   const totalPalavras = useMemo(
     () => blocos.reduce((soma, b) => soma + b.frases.reduce((n, f) => n + contarPalavras(f), 0), 0),
     [blocos],

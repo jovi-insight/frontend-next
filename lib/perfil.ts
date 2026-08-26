@@ -1,24 +1,26 @@
 import { gravarLocalStorage } from "./use-local-storage";
 
 /**
- * Perfil de acessibilidade. Porte de frontend/js/profile.js.
+ * Perfis de acessibilidade. Porte de frontend/js/profile.js, com uma
+ * diferença: aqui o aluno pode marcar mais de um.
  *
- * O jovi.css reage a body[data-perfil="..."] — é assim que baixa visão ganha
- * texto maior e mais contraste sem nenhuma linha de JS extra.
+ * Surdez, baixa visão e dislexia não são categorias excludentes — a mesma
+ * pessoa pode precisar de LIBRAS na câmera e de texto maior. O valor guardado
+ * é a lista separada por espaço ("surdo baixa-visao"), que é exatamente o que
+ * o seletor de atributo `~=` do CSS sabe casar:
+ *
+ *     body[data-perfil~="baixa-visao"] { ... }
+ *
+ * Um valor antigo, de uma escolha única ("surdo"), continua sendo lido como
+ * uma lista de um item — não precisa de migração.
  */
 
 export const CHAVE_PERFIL = "jovi_perfil";
-const PADRAO = "padrao";
 
-export type PerfilId = "padrao" | "surdo" | "baixa-visao" | "dislexia-tdah";
+/** "padrao" não é um perfil: é a ausência de adaptações. */
+export type PerfilId = "surdo" | "baixa-visao" | "dislexia-tdah";
 
 export const PERFIS: { id: PerfilId; nome: string; descricao: string; icone: string }[] = [
-  {
-    id: "padrao",
-    nome: "Padrão",
-    descricao: "Interface completa, sem adaptações.",
-    icone: "person",
-  },
   {
     id: "surdo",
     nome: "Surdo ou com deficiência auditiva",
@@ -39,18 +41,28 @@ export const PERFIS: { id: PerfilId; nome: string; descricao: string; icone: str
   },
 ];
 
-export function lerPerfil(): PerfilId {
-  try {
-    const salvo = localStorage.getItem(CHAVE_PERFIL);
-    return PERFIS.some((p) => p.id === salvo) ? (salvo as PerfilId) : PADRAO;
-  } catch {
-    return PADRAO; // modo privado bloqueia o localStorage
-  }
+const IDS = new Set<string>(PERFIS.map((p) => p.id));
+
+/** Lista de perfis a partir do valor cru do localStorage. */
+export function lerPerfis(valor: string | null | undefined): PerfilId[] {
+  return (valor || "").split(/\s+/).filter((id): id is PerfilId => IDS.has(id));
 }
 
-export function aplicarPerfil(id: PerfilId) {
+/** Atalho para os consumidores, que leem a chave como string. */
+export function temPerfil(valor: string | null | undefined, id: PerfilId): boolean {
+  return lerPerfis(valor).includes(id);
+}
+
+export function gravarPerfis(perfis: PerfilId[]) {
   // Passa pelo gravarLocalStorage para que os componentes que leem o perfil
   // com useLocalStorage sejam notificados nesta mesma aba.
-  gravarLocalStorage(CHAVE_PERFIL, id);
-  if (typeof document !== "undefined") document.body.dataset.perfil = id;
+  gravarLocalStorage(CHAVE_PERFIL, perfis.join(" "));
+  if (typeof document !== "undefined") document.body.dataset.perfil = perfis.join(" ");
+}
+
+/** Liga ou desliga um perfil, preservando os outros. */
+export function alternarPerfil(atuais: PerfilId[], id: PerfilId): PerfilId[] {
+  const novos = atuais.includes(id) ? atuais.filter((p) => p !== id) : [...atuais, id];
+  gravarPerfis(novos);
+  return novos;
 }

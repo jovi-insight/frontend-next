@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
-import TopHeader from "@/components/TopHeader";
 import BottomNav from "@/components/BottomNav";
 import GaleriaVideos from "@/components/GaleriaVideos";
 import { getRecentes, getPastas, getMaterias, type Conteudo, type Materia, type Pasta } from "@/lib/api";
@@ -81,9 +80,8 @@ function LibraryConteudo() {
 
   return (
     <>
-      <TopHeader titulo="Archive" />
 
-      <main className="container archive-main">
+      <main className="container archive-main sem-topbar">
         <nav className="breadcrumb">
           <Link href="/" style={{ textDecoration: "none", color: "inherit" }}>
             Início
@@ -229,6 +227,12 @@ function Miniatura({
         </span>
       )}
       <span className="selo-data">{data}</span>
+      {doc.imagens?.length > 1 && (
+        <span className="selo-paginas" title={`Aula com ${doc.imagens.length} páginas`}>
+          {doc.imagens.length}
+          <span className="material-symbols-outlined">filter_none</span>
+        </span>
+      )}
       {selecionando && (
         <span className={`marca-selecao${marcado ? " marcada" : ""}`} aria-hidden="true">
           <span className="material-symbols-outlined">{marcado ? "check_circle" : "circle"}</span>

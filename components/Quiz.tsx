@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { gerarQuiz, getQuiz, narrar, type Pergunta } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { gerarQuiz, getQuiz, type Pergunta } from "@/lib/api";
+import { useNarracao } from "@/lib/use-narracao";
 
 const LETRAS = ["a", "b", "c", "d"] as const;
 type Letra = (typeof LETRAS)[number];
@@ -230,76 +231,10 @@ function CardPergunta({
 }
 
 /**
- * Narra a pergunta. O MP3 do ElevenLabs vem primeiro porque toca em qualquer
- * navegador; a voz do sistema não é garantida (no Linux depende do
- * speech-dispatcher e, sem ele, speak() é aceito e não sai som nenhum).
+ * Narra a pergunta e as alternativas — sem entregar o gabarito.
  */
 function BotaoOuvir({ pergunta }: { pergunta: PerguntaUI }) {
-  const [estado, setEstado] = useState<"parado" | "carregando" | "falando">("parado");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
-
-  const parar = useCallback(() => {
-    audioRef.current?.pause();
-    audioRef.current = null;
-    if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
-    setEstado("parado");
-  }, []);
-
-  // Sair da página no meio da narração não pode deixar a voz tocando, e o
-  // object URL do MP3 precisa ser liberado.
-  useEffect(
-    () => () => {
-      audioRef.current?.pause();
-      if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    },
-    [],
-  );
-
-  function falarComNavegador(): boolean {
-    if (typeof speechSynthesis === "undefined") return false;
-    if (speechSynthesis.getVoices().length === 0) return false;
-
-    const fala = new SpeechSynthesisUtterance(textoParaFala(pergunta));
-    fala.lang = "pt-BR";
-    fala.rate = 0.95;
-    // Só lang não basta: em várias combinações de Chrome + Linux a fala sai
-    // muda se a voz não vier escolhida explicitamente.
-    const voz = speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith("pt"));
-    if (voz) fala.voice = voz;
-    fala.onend = parar;
-    fala.onerror = parar;
-    // O Chrome deixa a fila em pausa depois de ocioso e o speak() seguinte
-    // entra nela sem nunca tocar.
-    speechSynthesis.resume();
-    speechSynthesis.speak(fala);
-    setEstado("falando");
-    return true;
-  }
-
-  async function alternar() {
-    if (estado !== "parado") return parar();
-
-    setEstado("carregando");
-    try {
-      if (!urlRef.current) {
-        const blob = await narrar(textoParaFala(pergunta), "pt");
-        urlRef.current = URL.createObjectURL(blob); // reouvir não gasta outra chamada
-      }
-      const audio = new Audio(urlRef.current);
-      audio.onended = parar;
-      audio.onerror = parar;
-      await audio.play();
-      audioRef.current = audio;
-      setEstado("falando");
-      return;
-    } catch (e) {
-      console.warn("Narração do backend indisponível, usando a voz do navegador:", e);
-    }
-
-    if (!falarComNavegador()) setEstado("parado");
-  }
+  const { estado, alternar } = useNarracao(() => textoParaFala(pergunta));
 
   const icone =
     estado === "falando" ? "stop_circle" : estado === "carregando" ? "progress_activity" : "volume_up";
@@ -310,11 +245,9 @@ function BotaoOuvir({ pergunta }: { pergunta: PerguntaUI }) {
       className={`quiz-ouvir${estado !== "parado" ? " is-falando" : ""}`}
       aria-label="Ouvir a pergunta e as alternativas"
       aria-pressed={estado !== "parado"}
-      onClick={alternar}
+      onClick={() => alternar("pt")}
     >
-      <span
-        className={`material-symbols-outlined${estado === "carregando" ? " girando" : ""}`}
-      >
+      <span className={`material-symbols-outlined${estado === "carregando" ? " girando" : ""}`}>
         {icone}
       </span>
     </button>

@@ -114,6 +114,14 @@ export async function narrar(texto: string, idioma = "pt"): Promise<Blob> {
   return await res.blob();
 }
 
+/** Traduz o que está escrito numa imagem (o backend faz OCR + tradução). */
+export async function traduzirImagem(arquivo: Blob): Promise<{ traducao: string }> {
+  const form = new FormData();
+  form.append("imagem", arquivo, "traduzir.jpg");
+  const res = await fetch(`${BASE_URL}/ia/traduzir-imagem`, { method: "POST", body: form });
+  return handle(res, "Falha na tradução da imagem");
+}
+
 export async function traduzirTexto(
   texto: string,
   idiomaDestino = "português brasileiro",
@@ -191,8 +199,15 @@ export async function criarAula(
   return handle(res, "Falha ao salvar a aula");
 }
 
-export async function getRecentes(): Promise<Conteudo[]> {
-  const res = await fetch(`${BASE_URL}/dashboard/recentes`);
+/**
+ * Documentos do usuário, do mais novo para o mais antigo.
+ *
+ * O padrão da rota é 4 (era o do painel inicial) — a galeria precisa de tudo,
+ * senão o quinto documento em diante fica inalcançável fora da tela de pastas.
+ * Backends antigos ignoram o parâmetro e seguem devolvendo 4.
+ */
+export async function getRecentes(limite = 100): Promise<Conteudo[]> {
+  const res = await fetch(`${BASE_URL}/dashboard/recentes?limit=${limite}`);
   return handle(res, "Falha ao carregar recentes");
 }
 

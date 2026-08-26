@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsc lib/estudo.ts lib/perfil.ts lib/use-local-storage.ts lib/paginas-aula.ts lib/video-vtt.ts --outDir .teste-build --module es2022 --target es2022 --moduleResolution bundler && sed -i 's|\"./use-local-storage\"|\"./use-local-storage.js\"|' .teste-build/perfil.js && node tests/estudo.test.mjs && node tests/perfil.test.mjs && node tests/paginas-aula.test.mjs && node tests/video-vtt.test.mjs"
   },
   "dependencies": {
     "next": "16.3.1",

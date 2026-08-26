@@ -3139,9 +3139,9 @@ canvas {
 
 .video-library-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 16px;
-    margin-bottom: 52px;
+    margin-bottom: 32px;
 }
 
 .video-library-card {
@@ -3152,26 +3152,79 @@ canvas {
     border-radius: 16px;
     background: rgba(28, 28, 30, 0.72);
     cursor: pointer;
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .video-library-card:hover,
-.video-library-card:focus-visible {
+.video-library-card:focus-within {
     transform: translateY(-3px);
-    border-color: rgba(255, 214, 0, 0.55);
+    border-color: rgba(156, 208, 206, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     outline: none;
 }
 
 .video-card-preview {
-    min-height: 124px;
+    width: 100%;
+    height: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    color: #ffd600;
+    color: var(--primary, #9cd0ce);
     background:
-        radial-gradient(circle at 72% 24%, rgba(255, 214, 0, 0.25), transparent 35%),
+        radial-gradient(circle at 72% 24%, rgba(156, 208, 206, 0.15), transparent 35%),
         linear-gradient(135deg, #202024, #0c0c0e);
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.video-card-thumb {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+}
+
+.video-library-card:hover .video-card-thumb {
+    transform: scale(1.04);
+}
+
+.video-card-thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background:
+        radial-gradient(circle at 72% 24%, rgba(156, 208, 206, 0.15), transparent 35%),
+        linear-gradient(135deg, #202024, #0c0c0e);
+}
+
+.video-card-play-overlay {
+    position: relative;
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary, #9cd0ce);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.video-library-card:hover .video-card-play-overlay {
+    transform: scale(1.1);
+    background: rgba(0, 0, 0, 0.85);
 }
 
 .video-card-preview > .material-symbols-outlined {
@@ -3188,6 +3241,7 @@ canvas {
     color: white;
     font-size: 10px;
     font-weight: 700;
+    z-index: 3;
 }
 
 .video-card-info {
@@ -3223,6 +3277,7 @@ canvas {
     background: rgba(255, 69, 58, 0.1);
     color: #ff6961;
     cursor: pointer;
+    z-index: 4;
 }
 
 .video-card-delete .material-symbols-outlined {
@@ -3294,7 +3349,7 @@ canvas {
     line-height: 1.35;
 }
 
-[data-perfil="baixa-visao"] #gallery-video::cue {
+[data-perfil~="baixa-visao"] #gallery-video::cue {
     background: #000000;
     font-size: clamp(20px, 5.5vw, 30px);
 }
@@ -3718,7 +3773,7 @@ canvas {
    --surface-highest (token já existente) em vez de --primary-variant,
    que é o mesmo tom quase-branco do texto — bordas e texto ficariam
    com o mesmo peso visual e a borda deixaria de se destacar. */
-body[data-perfil="baixa-visao"] {
+body[data-perfil~="baixa-visao"] {
     --on-surface-variant: var(--primary-variant);
     --outline: var(--surface-highest);
     /* --card-border padrão (rgba(255,255,255,0.08) no :root) mede ~1.5:1
@@ -3742,7 +3797,7 @@ body[data-perfil="baixa-visao"] {
    real e observado foi outro (chrome fixo indo para fora da tela — ver
    bloco de contra-zoom abaixo, que cobre inclusive os controles da câmera
    como o obturador e o seletor de modo). */
-body[data-perfil="baixa-visao"] {
+body[data-perfil~="baixa-visao"] {
     zoom: 1.15;
 }
 
@@ -3757,22 +3812,22 @@ body[data-perfil="baixa-visao"] {
    .camera-mode-selector (index.html) são position:absolute dentro do
    próprio body — cobertos aqui pela mesma razão: ambos ficam perto do
    rodapé de um body agora sujeito ao mesmo crescimento de ~15% em altura. */
-body[data-perfil="baixa-visao"] .bottom-nav,
-body[data-perfil="baixa-visao"] .toast-container,
-body[data-perfil="baixa-visao"] .audio-player,
-body[data-perfil="baixa-visao"] .focus-controles,
-body[data-perfil="baixa-visao"] .camera-shutter-control,
-body[data-perfil="baixa-visao"] .camera-mode-selector {
+body[data-perfil~="baixa-visao"] .bottom-nav,
+body[data-perfil~="baixa-visao"] .toast-container,
+body[data-perfil~="baixa-visao"] .audio-player,
+body[data-perfil~="baixa-visao"] .focus-controles,
+body[data-perfil~="baixa-visao"] .camera-shutter-control,
+body[data-perfil~="baixa-visao"] .camera-mode-selector {
     zoom: calc(1 / 1.15);
 }
 
-body[data-perfil="baixa-visao"] .nav-item span:last-child { font-size: calc(10px * 1.15); }
-body[data-perfil="baixa-visao"] .mode-btn { font-size: calc(11px * 1.15); }
-body[data-perfil="baixa-visao"] .toast-message { font-size: calc(11px * 1.15); }
-body[data-perfil="baixa-visao"] .focus-btn { font-size: calc(15px * 1.15); }
+body[data-perfil~="baixa-visao"] .nav-item span:last-child { font-size: calc(10px * 1.15); }
+body[data-perfil~="baixa-visao"] .mode-btn { font-size: calc(11px * 1.15); }
+body[data-perfil~="baixa-visao"] .toast-message { font-size: calc(11px * 1.15); }
+body[data-perfil~="baixa-visao"] .focus-btn { font-size: calc(15px * 1.15); }
 
-body[data-perfil="baixa-visao"] .focus-frase { font-size: 25px; line-height: 2; }
-body[data-perfil="baixa-visao"] .card { border-width: 2px; }
+body[data-perfil~="baixa-visao"] .focus-frase { font-size: 25px; line-height: 2; }
+body[data-perfil~="baixa-visao"] .card { border-width: 2px; }
 
 /* Modo AULA ao vivo */
 .aula-barra {

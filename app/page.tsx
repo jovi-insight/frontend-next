@@ -19,17 +19,29 @@ import { useGravador } from "@/lib/use-gravador";
 import { useLibras } from "@/lib/use-libras";
 import { analisarImagem } from "@/lib/api";
 import {
-  criarPagina, marcarTexto, marcarFalha, removerPagina, textoDaAula, janelaDeAula, type Pagina,
+  criarPagina, marcarTexto, marcarLendo, marcarFalha, removerPagina, textoDaAula, janelaDeAula,
+  type Pagina,
 } from "@/lib/paginas-aula";
 import { adicionarVideo, salvarTranscricao } from "@/lib/video-library";
 import { gravarLocalStorage, useLocalStorage } from "@/lib/use-local-storage";
 import { avisar } from "@/lib/avisos";
-import { CHAVE_PERFIL } from "@/lib/perfil";
+import { CHAVE_PERFIL, temPerfil } from "@/lib/perfil";
 
 type Modo = "FOTO" | "VÍDEO" | "SCAN" | "LIBRAS" | "AULA";
 const MODOS: Modo[] = ["FOTO", "VÍDEO", "SCAN", "LIBRAS", "AULA"];
 
 const FILTRO_REALCE = "contrast(1.35) brightness(1.08) saturate(0.9)";
+
+/**
+ * Quantos segundos esperar antes de tentar de novo. A mensagem de cota do
+ * Gemini traz "Please retry in 37.8s"; sem isso, 3s de cortesia. O teto de 45s
+ * evita prender o aluno numa tela de espera indefinida.
+ */
+function segundosParaTentarDeNovo(mensagem: string): number {
+  const achado = /retry in ([\d.]+)s/i.exec(mensagem || "");
+  const pedido = achado ? Math.ceil(Number(achado[1])) : 3;
+  return Math.min(Math.max(pedido, 3), 45);
+}
 
 function formatarTempo(segundos: number): string {
   const m = String(Math.floor(segundos / 60)).padStart(2, "0");
@@ -42,8 +54,8 @@ function CameraConteudo() {
   // Perfil surdo abre direto em LIBRAS — é o que a tela de Ajustes promete.
   // Vai no estado inicial, e não num efeito, para a câmera não piscar em SCAN
   // antes de trocar.
-  const perfil = useLocalStorage(CHAVE_PERFIL, "padrao");
-  const [modo, setModo] = useState<Modo>(perfil === "surdo" ? "LIBRAS" : "SCAN");
+  const perfil = useLocalStorage(CHAVE_PERFIL);
+  const [modo, setModo] = useState<Modo>(temPerfil(perfil, "surdo") ? "LIBRAS" : "SCAN");
   const [gaveta, setGaveta] = useState<Gaveta>(null);
   const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_PADRAO);
   const [flash, setFlash] = useState<ModoFlash>("off");
@@ -111,18 +123,10 @@ function CameraConteudo() {
       return;
     }
 
-    // SCAN acumula páginas: a foto entra na tira e a OCR corre em segundo
-    // plano, para o aluno continuar fotografando o quadro seguinte.
-    const pagina = criarPagina(imagem, miniatura ?? imagem);
-    setPaginas((antes) => [...antes, pagina]);
-
-    try {
-      const resultado = await analisarImagem(await (await fetch(imagem)).blob());
-      setPaginas((antes) => marcarTexto(antes, pagina.id, resultado.texto_extraido || ""));
-    } catch (e) {
-      console.warn("OCR da página falhou:", e);
-      setPaginas((antes) => marcarFalha(antes, pagina.id));
-    }
+    // SCAN acumula páginas e não toca na rede: a leitura acontece ao concluir.
+    // Lendo durante a captura, quatro fotos seguidas viravam quatro chamadas
+    // de IA simultâneas e o Gemini derrubava as excedentes com 502.
+    setPaginas((antes) => [...antes, criarPagina(imagem, miniatura ?? imagem)]);
   }, [camera, filtroAtual, modo]);
 
   /** Flash: lanterna quando o aparelho tem, clarão de tela quando não tem. */
@@ -142,23 +146,62 @@ function CameraConteudo() {
     [camera, flash],
   );
 
-  /** Envia as páginas como uma aula e segue para organizar. */
+  /** Lê as páginas e envia a aula. Só aqui a captura em lote toca na rede. */
   async function concluirAula() {
-    if (!paginas.length) return;
-    if (paginas.some((p) => p.estado === "lendo")) {
-      avisar("Ainda estou lendo uma das páginas. Um instante.", "info");
-      return;
-    }
+    if (!paginas.length || ocupado) return;
 
-    setOcupado(`Salvando ${paginas.length} páginas…`);
     try {
+      // Uma de cada vez, na ordem: em paralelo o Gemini responde 502 nas
+      // excedentes. Uma segunda tentativa cobre o 503 passageiro dele.
+      let lidas = paginas;
+      for (const [i, pagina] of paginas.entries()) {
+        setOcupado(`Lendo página ${i + 1} de ${paginas.length}…`);
+        setPaginas((antes) => marcarLendo(antes, pagina.id));
+        const blob = await (await fetch(pagina.imagem)).blob();
+        let texto: string | null = null;
+        for (const tentativa of [1, 2]) {
+          try {
+            texto = (await analisarImagem(blob)).texto_extraido || "";
+            break;
+          } catch (e) {
+            console.warn(`OCR da página ${i + 1} falhou (tentativa ${tentativa}):`, e);
+            if (tentativa === 2) break;
+            // A cota gratuita do Gemini é de 20 chamadas por minuto, e o erro
+            // 429 informa quantos segundos faltam. Esperar 1s e tentar de novo
+            // só queimaria a segunda tentativa à toa.
+            const espera = segundosParaTentarDeNovo((e as Error).message);
+            setOcupado(
+              espera > 3
+                ? `Limite da IA atingido. Retomando a página ${i + 1} em ${espera}s…`
+                : `Lendo página ${i + 1} de novo…`,
+            );
+            await new Promise((r) => setTimeout(r, espera * 1000));
+            setOcupado(`Lendo página ${i + 1} de ${paginas.length}…`);
+          }
+        }
+        lidas = texto === null ? marcarFalha(lidas, pagina.id) : marcarTexto(lidas, pagina.id, texto);
+        setPaginas(lidas);
+      }
+
+      const falhas = lidas.filter((p) => p.estado === "falhou").length;
+      if (falhas === lidas.length) {
+        avisar(
+          "Nenhuma página pôde ser lida — a cota gratuita da IA (20 leituras por minuto) " +
+            "provavelmente estourou. As fotos continuam aqui: espere um minuto e conclua de novo.",
+          "erro",
+        );
+        return;
+      }
+      if (falhas) avisar(`${falhas} de ${lidas.length} páginas não puderam ser lidas.`, "info");
+
+      setOcupado(`Salvando ${lidas.length} páginas…`);
       // As imagens são data URLs; o backend recebe binário.
       const blobs = await Promise.all(
-        paginas.map(async (p) => (await fetch(p.imagem)).blob()),
+        lidas.map(async (p) => (await fetch(p.imagem)).blob()),
       );
       gravarLocalStorage(
         "aula_pendente",
-        JSON.stringify({ texto: textoDaAula(paginas), paginas: blobs.length }),
+        JSON.stringify({ texto: textoDaAula(lidas), paginas: blobs.length }),
       );
       // A escolha da matéria continua na tela de organizar; guardamos as
       // imagens aqui até lá.
@@ -237,10 +280,11 @@ function CameraConteudo() {
       const item = await adicionarVideo(arquivo, duracao);
       // Os trechos que a aula já transcreveu viram a legenda do vídeo — não há
       // uma segunda passada de transcrição depois.
+      const texto = falas.map((f) => f.texto).join(" ").trim();
       if (falas.length) {
         await salvarTranscricao(item.id, {
           language: "pt-BR",
-          text: falas.map((f) => f.texto).join(" "),
+          text: texto,
           segments: falas.map((f, i) => ({
             start: f.segundo,
             end: falas[i + 1]?.segundo ?? f.segundo + 4,
@@ -248,6 +292,23 @@ function CameraConteudo() {
           })),
         });
       }
+
+      // A transcrição também vira documento no banco: é o que dá resumo e
+      // quiz da aula. Sem falas não há o que resumir — aí só o vídeo importa.
+      if (texto) {
+        const capa = camera.capturar(0, 0.9, "");
+        if (capa) {
+          janelaDeAula.blobs = [await (await fetch(capa)).blob()];
+          gravarLocalStorage(
+            "aula_pendente",
+            JSON.stringify({ texto, paginas: 1, origem: "transcricao", video: item.id }),
+          );
+          avisar("Vídeo salvo na galeria. Escolha a matéria para guardar a transcrição.", "sucesso");
+          router.push("/organize?aula=1");
+          return;
+        }
+      }
+
       router.push(`/player/${item.id}`);
     } catch (e) {
       avisar((e as Error).message, "erro");
@@ -507,8 +568,13 @@ function CameraConteudo() {
             ))}
           </div>
 
-          <button type="button" className="tira-concluir" onClick={concluirAula}>
-            Concluir ({paginas.length})
+          <button
+            type="button"
+            className="tira-concluir"
+            onClick={concluirAula}
+            disabled={Boolean(ocupado)}
+          >
+            {ocupado ? "Lendo…" : `Concluir (${paginas.length})`}
           </button>
         </div>
       )}

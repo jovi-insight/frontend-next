@@ -92,8 +92,12 @@
   background: rgba(239, 68, 68, 0.6);
 }
 
-/* Opção de perfil na tela de ajustes: no vanilla era um <li> com onclick; como
-   agora é botão de verdade, ganha estado pressionado e foco visível. */
+/* Opção de perfil na tela de ajustes: <label> com checkbox (dá para marcar
+   mais de um perfil) ali, e <button> na escolha de matéria em Organizar. */
+.perfil-opcao:has(input:focus-visible) {
+  border-color: var(--primary);
+}
+
 .perfil-opcao {
   display: flex;
   align-items: center;
@@ -119,17 +123,14 @@
   background: var(--surface-high);
 }
 
-/* Legenda do player: fundo próprio porque ela fica sobre o vídeo em telas
-   largas e sobre o fundo da página no celular. */
-.player-legenda {
-  margin: 12px 0 0;
-  padding: 12px 16px;
-  min-height: 48px;
+/* Legenda do player: faixa nativa do <video> (WebVTT), não um elemento nosso
+   por cima — só a nativa sobrevive à tela cheia, onde o navegador promove
+   apenas o elemento <video>. Estilo pelo ::cue. */
+.player-video::cue {
   background: rgba(0, 0, 0, 0.72);
-  border-radius: 8px;
+  color: #fff;
   font-size: 15px;
   line-height: 1.5;
-  text-align: center;
 }
 
 /* ─── Câmera (rota /) ──────────────────────────────────── */
@@ -633,36 +634,46 @@ select {
 /* SURDO — a informação nunca depende só do som.
    O aviso de que algo é falado ganha destaque, e a legenda da aula fica
    maior: para quem não ouve, ela não é apoio, é o conteúdo. */
-body[data-perfil="surdo"] .aula-legenda,
-body[data-perfil="surdo"] .player-legenda {
+body[data-perfil~="surdo"] .aula-legenda {
   font-size: 19px;
   line-height: 1.6;
   background: rgba(0, 0, 0, 0.88);
   border: 1px solid rgba(156, 208, 206, 0.35);
 }
 
-body[data-perfil="surdo"] .libras-barra {
+/* ::cue não aceita border nem herda de outra regra: precisa da sua própria. */
+body[data-perfil~="surdo"] .player-video::cue {
+  font-size: 19px;
+  background: rgba(0, 0, 0, 0.88);
+}
+
+body[data-perfil~="baixa-visao"] .player-video::cue {
+  background: #000;
+  font-size: clamp(20px, 5.5vw, 30px);
+}
+
+body[data-perfil~="surdo"] .libras-barra {
   border-color: rgba(156, 208, 206, 0.4);
 }
 
 /* O botão de narrar continua existindo (pode haver resíduo auditivo), mas
    deixa de competir com o que é visual. */
-body[data-perfil="surdo"] .quiz-ouvir {
+body[data-perfil~="surdo"] .quiz-ouvir {
   opacity: 0.55;
 }
 
 /* DISLEXIA / TDAH — menos texto por vez, mais respiro entre as linhas.
    Espaçamento entre letras e palavras seguindo as recomendações de
    legibilidade do WCAG 1.4.12 (Text Spacing). */
-body[data-perfil="dislexia-tdah"] {
+body[data-perfil~="dislexia-tdah"] {
   --espaco-linha: 1.9;
 }
 
-body[data-perfil="dislexia-tdah"] .summary-text,
-body[data-perfil="dislexia-tdah"] .focus-frase,
-body[data-perfil="dislexia-tdah"] .quiz-pergunta,
-body[data-perfil="dislexia-tdah"] .quiz-alt,
-body[data-perfil="dislexia-tdah"] .quiz-explicacao {
+body[data-perfil~="dislexia-tdah"] .summary-text,
+body[data-perfil~="dislexia-tdah"] .focus-frase,
+body[data-perfil~="dislexia-tdah"] .quiz-pergunta,
+body[data-perfil~="dislexia-tdah"] .quiz-alt,
+body[data-perfil~="dislexia-tdah"] .quiz-explicacao {
   font-size: 17px;
   line-height: var(--espaco-linha);
   letter-spacing: 0.04em;
@@ -671,30 +682,30 @@ body[data-perfil="dislexia-tdah"] .quiz-explicacao {
 
 /* Texto corrido longo cansa: uma medida mais curta reduz a chance de pular
    linha ao voltar do fim para o começo. */
-body[data-perfil="dislexia-tdah"] .summary-text,
-body[data-perfil="dislexia-tdah"] .focus-cartao-texto {
+body[data-perfil~="dislexia-tdah"] .summary-text,
+body[data-perfil~="dislexia-tdah"] .focus-cartao-texto {
   max-width: 62ch;
 }
 
 /* Uma coisa de cada vez: as alternativas do quiz ficam mais separadas para
    o toque não errar e o olho não juntar duas linhas. */
-body[data-perfil="dislexia-tdah"] .quiz-alts {
+body[data-perfil~="dislexia-tdah"] .quiz-alts {
   gap: 12px;
 }
 
-body[data-perfil="dislexia-tdah"] .quiz-alt {
+body[data-perfil~="dislexia-tdah"] .quiz-alt {
   min-height: 56px;
 }
 
 /* Movimento chama atenção e atrapalha quem tem TDAH. */
-body[data-perfil="dislexia-tdah"] .shutter-button,
-body[data-perfil="dislexia-tdah"] .quiz-alt,
-body[data-perfil="dislexia-tdah"] .library-item {
+body[data-perfil~="dislexia-tdah"] .shutter-button,
+body[data-perfil~="dislexia-tdah"] .quiz-alt,
+body[data-perfil~="dislexia-tdah"] .library-item {
   transition: none;
 }
 
-body[data-perfil="dislexia-tdah"] .aula-ponto,
-body[data-perfil="dislexia-tdah"] .pulse {
+body[data-perfil~="dislexia-tdah"] .aula-ponto,
+body[data-perfil~="dislexia-tdah"] .pulse {
   animation: none;
 }
 
@@ -873,4 +884,202 @@ body[data-perfil="dislexia-tdah"] .pulse {
 
 @media (prefers-reduced-motion: reduce) {
   .tira-spinner { animation: none; }
+}
+
+/* ── Resumo: guia de estudo, idioma da narração e ações ────────────────── */
+
+.guia-estudo {
+  list-style: none;
+  padding: 20px;
+  margin: 0 0 24px;
+  background: var(--surface-container-low);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.guia-estudo li {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--on-surface);
+}
+
+.guia-estudo .material-symbols-outlined {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.narracao-idioma {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--on-surface-variant);
+}
+
+/* Três ações lado a lado, como no HTML. Abaixo de 360px viram duas colunas —
+   "Gerando voz…" não cabe em um terço de tela pequena. */
+.acoes-resumo {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.acoes-resumo > * {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  cursor: pointer;
+  color: var(--on-surface-variant);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  text-decoration: none;
+  transition: border-color 0.2s;
+}
+
+.acoes-resumo > *:hover,
+.acoes-resumo > *:focus-visible {
+  border-color: var(--primary);
+}
+
+.acoes-resumo button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.acoes-resumo .material-symbols-outlined {
+  font-size: 28px;
+}
+
+@media (max-width: 360px) {
+  .acoes-resumo {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Páginas de uma aula, no resumo: rolam na horizontal para não empurrar o
+   quiz para fora da tela no celular. */
+.paginas-aula {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+}
+
+.paginas-aula .doc-original-image {
+  flex: 0 0 auto;
+  width: 78%;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 600px) {
+  .paginas-aula .doc-original-image { width: 240px; }
+}
+
+/* Miniatura de aula: o número de páginas no canto, como a pilha de fotos da
+   galeria do celular. */
+.selo-paginas {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.selo-paginas .material-symbols-outlined { font-size: 12px; }
+
+/* A barrinha de destaque foi posta DENTRO de .section-title, que no jovi.css
+   nunca foi flex — então ela caía acima do título em vez de ficar ao lado.
+   Uma regra aqui conserta as sete telas de uma vez. */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Parar narração: ação secundária ao lado do play/pause do player. */
+.narracao-parar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: none;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+
+.narracao-parar:hover,
+.narracao-parar:focus-visible {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* Telas com barra inferior não têm mais cabeçalho fixo — o espaço reservado
+   para ele viraria um vão em branco no topo. */
+.archive-main.sem-topbar {
+  padding-top: 32px;
+}
+
+/* Player da narração: play/pause à esquerda, fechar à direita, o resto no meio.
+   Antes os dois botões ficavam colados na esquerda e espremiam a barra. */
+.player-meio {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--on-surface-variant);
+}
+
+.player-linha span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Barras da voz: altura fixa e cor herdada, que o canvas lê para desenhar. */
+.voz-ondas {
+  width: 100%;
+  height: 22px;
+  color: var(--primary);
 }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
-import TopHeader from "@/components/TopHeader";
 import BottomNav from "@/components/BottomNav";
 import { avisar } from "@/lib/avisos";
 import {
@@ -12,6 +11,7 @@ import {
   getPasta,
   renomearPasta,
   excluirPasta,
+  criarMateria,
   type Conteudo,
   type Materia,
   type Pasta,
@@ -91,6 +91,18 @@ function FoldersConteudo() {
   const conteudosDaPasta =
     nivel.tipo === "pasta" && conteudos?.pastaId === nivel.pastaId ? conteudos.itens : null;
 
+  async function aoCriarMateria() {
+    const nome = prompt("Nome da nova matéria/pasta:");
+    if (!nome?.trim()) return;
+    try {
+      await criarMateria(nome.trim());
+      await recarregar();
+      avisar("Matéria criada com sucesso!", "sucesso");
+    } catch (e) {
+      avisar((e as Error).message, "erro");
+    }
+  }
+
   async function aoRenomear(pasta: Pasta) {
     const novo = prompt("Novo nome da pasta:", pasta.nome);
     if (!novo?.trim() || novo.trim() === pasta.nome) return;
@@ -139,9 +151,8 @@ function FoldersConteudo() {
 
   return (
     <>
-      <TopHeader titulo="Folders" />
 
-      <main className="container archive-main">
+      <main className="container archive-main sem-topbar">
         <nav className="breadcrumb">
           <button className="link-limpo" onClick={() => setNivel({ tipo: "raiz" })}>
             Matérias
@@ -175,19 +186,34 @@ function FoldersConteudo() {
             <h2>{pastaAtual?.nome ?? materiaAtual?.nome ?? "Matérias"}</h2>
           </div>
 
-          {nivel.tipo === "raiz" && vazias > 0 && (
-            <button
-              type="button"
-              className={`chip${mostrarVazias ? " chip-primario" : ""}`}
-              onClick={() => setMostrarVazias((v) => !v)}
-              aria-pressed={mostrarVazias}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                {mostrarVazias ? "visibility_off" : "visibility"}
-              </span>
-              {mostrarVazias ? "Ocultar vazias" : `Mostrar vazias (${vazias})`}
-            </button>
-          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {nivel.tipo === "raiz" && (
+              <button
+                type="button"
+                className="chip chip-primario"
+                onClick={aoCriarMateria}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  add
+                </span>
+                Nova matéria
+              </button>
+            )}
+
+            {nivel.tipo === "raiz" && vazias > 0 && (
+              <button
+                type="button"
+                className={`chip${mostrarVazias ? " chip-primario" : ""}`}
+                onClick={() => setMostrarVazias((v) => !v)}
+                aria-pressed={mostrarVazias}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  {mostrarVazias ? "visibility_off" : "visibility"}
+                </span>
+                {mostrarVazias ? "Ocultar vazias" : `Mostrar vazias (${vazias})`}
+              </button>
+            )}
+          </div>
         </div>
 
         {erro && (
