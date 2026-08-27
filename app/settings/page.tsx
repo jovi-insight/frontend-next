@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
 import { PERFIS, alternarPerfil, lerPerfis, CHAVE_PERFIL, gravarPerfis } from "@/lib/perfil";
@@ -90,6 +91,17 @@ function SettingsConteudo() {
           Marque quantas opções precisar — elas se somam. O perfil muda como o app se comporta:
           tamanho do texto, contraste e por qual tela os resumos abrem.
         </p>
+
+        <Link href="/libras-training" className="ajustes-treino-libras">
+          <span className="ajustes-treino-libras-icone material-symbols-outlined" aria-hidden="true">
+            model_training
+          </span>
+          <span>
+            <strong>Treinar modelo de Libras</strong>
+            <small>Capture os 21 pontos da mão e ensine novas letras ao INSIGHT.</small>
+          </span>
+          <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        </Link>
 
         <fieldset
           style={{

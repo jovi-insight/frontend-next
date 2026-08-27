@@ -2007,3 +2007,455 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 @media (prefers-reduced-motion: reduce) {
   .modal-preview-overlay { animation: none; }
 }
+
+/* ─── Treinamento de Libras ───────────────────────────────
+   O fluxo existia no popover da câmera vanilla. No Next ele ganha uma tela
+   própria para a grade de letras e a câmera não disputarem espaço no celular. */
+.ajustes-treino-libras {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 16px;
+  color: var(--on-surface);
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(156, 208, 206, 0.12), rgba(28, 28, 30, 0.55));
+  border: 1px solid rgba(156, 208, 206, 0.28);
+  border-radius: 16px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.ajustes-treino-libras:hover,
+.ajustes-treino-libras:focus-visible {
+  border-color: #9cd0ce;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.ajustes-treino-libras-icone {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: #9cd0ce;
+  background: rgba(156, 208, 206, 0.12);
+  border-radius: 13px;
+}
+
+.ajustes-treino-libras strong,
+.ajustes-treino-libras small { display: block; }
+.ajustes-treino-libras strong { margin-bottom: 4px; font-size: 14px; }
+.ajustes-treino-libras small { color: var(--on-surface-variant); font-size: 11px; line-height: 1.45; }
+
+.treino-libras-main {
+  max-width: 1080px;
+  min-width: 0;
+}
+
+.treino-libras-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding: clamp(18px, 4vw, 28px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 15%, rgba(156, 208, 206, 0.15), transparent 42%),
+    var(--surface-container-low);
+  border: 1px solid rgba(156, 208, 206, 0.22);
+  border-radius: 20px;
+}
+
+.treino-libras-intro > .material-symbols-outlined {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  color: #9cd0ce;
+  font-size: 28px;
+  background: rgba(156, 208, 206, 0.12);
+  border: 1px solid rgba(156, 208, 206, 0.25);
+  border-radius: 16px;
+}
+
+.treino-libras-sobretitulo {
+  margin-bottom: 6px;
+  color: #9cd0ce;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.treino-libras-intro h2 {
+  margin-bottom: 8px;
+  font-size: clamp(22px, 4vw, 32px);
+  line-height: 1.1;
+  letter-spacing: -0.8px;
+}
+
+.treino-libras-intro div > p:last-child {
+  max-width: 700px;
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.treino-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.treino-status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+}
+
+.treino-status-card > .material-symbols-outlined {
+  color: var(--on-surface-variant);
+  font-size: 22px;
+}
+
+.treino-status-card.pronto > .material-symbols-outlined { color: #9cd0ce; }
+.treino-status-card strong,
+.treino-status-card small { display: block; }
+.treino-status-card strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; }
+.treino-status-card small { margin-top: 2px; color: var(--on-surface-variant); font-size: 10px; }
+
+.treino-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+
+.treino-aviso.erro { color: #ff8a84; border-color: rgba(255, 69, 58, 0.35); }
+.treino-aviso button { margin-left: auto; padding: 8px; color: inherit; background: none; border: 0; cursor: pointer; text-decoration: underline; }
+
+.treino-libras-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  align-items: start;
+  gap: 20px;
+  min-width: 0;
+}
+
+.treino-camera-card,
+.treino-controles-card,
+.treino-rede-card {
+  min-width: 0;
+  background: var(--surface-container-low);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+}
+
+.treino-camera-card { overflow: hidden; }
+
+.treino-camera-visor {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #080808;
+}
+
+.treino-camera-visor video,
+.treino-camera-visor canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.treino-camera-visor canvas { z-index: 2; pointer-events: none; }
+.treino-camera-visor.espelhado video,
+.treino-camera-visor.espelhado canvas { transform: scaleX(-1); }
+
+.treino-mao-status {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.treino-mao-status > span {
+  width: 7px;
+  height: 7px;
+  background: #ff9f0a;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.15);
+}
+
+.treino-mao-status.detectada > span {
+  background: #30d158;
+  box-shadow: 0 0 0 3px rgba(48, 209, 88, 0.15);
+}
+
+.treino-contagem {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: clamp(72px, 18vw, 120px);
+  font-weight: 800;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.treino-camera-erro {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  color: #ff8a84;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.86);
+}
+
+.treino-camera-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.treino-camera-rodape p { margin-bottom: 3px; font-size: 13px; font-weight: 700; }
+.treino-camera-rodape small { color: var(--on-surface-variant); font-size: 10px; line-height: 1.4; }
+.treino-camera-trocar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  color: var(--on-surface);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--card-border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.treino-controles-card,
+.treino-rede-card { padding: clamp(16px, 3vw, 22px); }
+
+.treino-etapa-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.treino-etapa-cabecalho > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  color: var(--on-primary);
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.treino-etapa-cabecalho h3 { margin: 2px 0 5px; font-size: 17px; }
+.treino-etapa-cabecalho p { color: var(--on-surface-variant); font-size: 10px; line-height: 1.5; }
+
+.treino-letras {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.treino-letras button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 4px;
+  color: var(--on-surface-variant);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.treino-letras button strong { font-size: 13px; }
+.treino-letras button small {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  color: inherit;
+  font-size: 7px;
+  opacity: 0.65;
+}
+
+.treino-letras button.pronta { color: #9cd0ce; border-color: rgba(156, 208, 206, 0.3); }
+.treino-letras button.selecionada { color: var(--on-primary); background: var(--primary); border-color: var(--primary); }
+.treino-letras button.selecionada.pronta { box-shadow: 0 0 0 2px #9cd0ce; }
+
+.treino-dica {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 70px;
+  margin-bottom: 16px;
+  padding: 12px;
+  color: var(--on-surface-variant);
+  background: rgba(156, 208, 206, 0.06);
+  border: 1px solid rgba(156, 208, 206, 0.16);
+  border-radius: 12px;
+}
+
+.treino-dica > span { color: #9cd0ce; font-size: 21px; }
+.treino-dica p { font-size: 11px; line-height: 1.45; }
+.treino-dica strong { display: block; margin-bottom: 3px; color: var(--on-surface); font-size: 12px; }
+
+.treino-progresso-bloco { margin-bottom: 16px; }
+.treino-progresso-bloco > div,
+.treino-job > div { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font-size: 10px; }
+.treino-progresso-bloco > div span,
+.treino-job > div span { color: var(--on-surface-variant); }
+
+.treino-progresso-bloco progress,
+.treino-job progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.treino-progresso-bloco progress::-webkit-progress-bar,
+.treino-job progress::-webkit-progress-bar { background: rgba(255, 255, 255, 0.08); }
+.treino-progresso-bloco progress::-webkit-progress-value,
+.treino-job progress::-webkit-progress-value { background: #9cd0ce; border-radius: 999px; }
+.treino-progresso-bloco progress::-moz-progress-bar,
+.treino-job progress::-moz-progress-bar { background: #9cd0ce; border-radius: 999px; }
+
+.treino-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 13px;
+  cursor: pointer;
+}
+
+.treino-botao.primario { color: var(--on-primary); background: var(--primary); border: 1px solid var(--primary); }
+.treino-botao.secundario { color: var(--on-surface); background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); }
+.treino-botao:disabled,
+.treino-camera-trocar:disabled,
+.treino-letras button:disabled { cursor: not-allowed; opacity: 0.42; }
+.treino-botao .material-symbols-outlined { font-size: 20px; }
+
+.treino-rede-card {
+  margin-top: 20px;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(156, 208, 206, 0.1), transparent 35%),
+    var(--surface-container-low);
+}
+
+.treino-job {
+  margin-bottom: 16px;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 12px;
+}
+
+.treino-job small { display: block; margin-top: 8px; color: var(--on-surface-variant); font-size: 9px; }
+.treino-job small.erro { color: #ff8a84; }
+.treino-modelo-resumo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--on-surface-variant);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.treino-modelo-resumo .material-symbols-outlined { color: #9cd0ce; font-size: 19px; }
+
+@media (max-width: 760px) {
+  .treino-libras-layout { grid-template-columns: minmax(0, 1fr); }
+  .treino-camera-visor { max-height: min(55dvh, 480px); }
+}
+
+@media (max-width: 480px) {
+  .treino-libras-main { padding-top: 82px; }
+  .treino-libras-intro { gap: 12px; margin-bottom: 16px; border-radius: 16px; }
+  .treino-libras-intro > .material-symbols-outlined { width: 42px; height: 42px; flex-basis: 42px; font-size: 23px; border-radius: 13px; }
+  .treino-libras-intro h2 { font-size: 21px; }
+  .treino-libras-intro div > p:last-child { font-size: 11px; }
+  .treino-status-grid { gap: 7px; margin-bottom: 16px; }
+  .treino-status-card { flex-direction: column; align-items: flex-start; gap: 7px; padding: 12px 10px; }
+  .treino-status-card strong { font-size: 13px; }
+  .treino-status-card small { font-size: 8px; }
+  .treino-camera-card,
+  .treino-controles-card,
+  .treino-rede-card { border-radius: 16px; }
+  .treino-camera-visor { aspect-ratio: 1 / 1; }
+  .treino-letras { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+  .treino-letras button { min-height: 42px; border-radius: 9px; }
+  .treino-rede-card { margin-top: 16px; }
+}
+
+@media (max-width: 350px) {
+  .treino-status-card > .material-symbols-outlined { display: none; }
+  .treino-letras { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ajustes-treino-libras { gap: 10px; padding: 13px; }
+  .ajustes-treino-libras-icone { width: 38px; height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ajustes-treino-libras { transition: none; }
+}

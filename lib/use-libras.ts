@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { inferirLandmarks, statusModelo } from "./libras-ml";
 
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
 const PAUSA_DE_PALAVRA = 2000;
@@ -9,11 +10,23 @@ const CDN_MEDIAPIPE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands";
 
 export type Landmark = { x: number; y: number; z: number };
 
+export type QuadroLandmarks = {
+  landmarks: Landmark[];
+  capturadoEm: number;
+};
+
 type Resultado = {
   status: "sem-mao" | "incerto" | "movimento" | "estabilizando" | "confirmado";
   letter?: string;
   confidence?: number;
   motion?: { speed: number; moving: boolean };
+  dynamic?: boolean;
+};
+
+type PredicaoBackendEstavel = {
+  letter: string;
+  confidence: number;
+  recebidaEm: number;
 };
 
 type Reconhecedor = {
@@ -77,6 +90,7 @@ function carregarScript(src: string): Promise<void> {
 export function useLibras(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   ativo: boolean,
+  reconhecer = true,
 ) {
   const [letra, setLetra] = useState<string | null>(null);
   const [confianca, setConfianca] = useState(0);
@@ -85,6 +99,7 @@ export function useLibras(
   const [soletrando, setSoletrando] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [maoDetectada, setMaoDetectada] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handsRef = useRef<Hands | null>(null);
@@ -93,6 +108,12 @@ export function useLibras(
   const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ultimaLetraRef = useRef<string | null>(null);
   const liberadoRef = useRef(true);
+  const quadroRef = useRef<QuadroLandmarks | null>(null);
+  const modeloBackendAtivoRef = useRef(false);
+  const predicaoBackendRef = useRef<PredicaoBackendEstavel | null>(null);
+  const bufferBackendRef = useRef<PredicaoBackendEstavel[]>([]);
+  const backendOcupadoRef = useRef(false);
+  const backendSolicitadoEmRef = useRef(0);
 
   /** Desenha os 21 pontos e as conexões da mão sobre o vídeo. */
   const desenhar = useCallback((pontos: Landmark[] | null) => {
@@ -167,10 +188,10 @@ export function useLibras(
           );
         }
         await carregarScript(`${CDN_MEDIAPIPE}/hands.min.js`);
-        await carregarScript("/vendor/libras-recognizer.js");
+        if (reconhecer) await carregarScript("/vendor/libras-recognizer.js");
         if (!vivo) return;
 
-        if (!window.Hands || !window.LibrasAlphabetRecognizer) {
+        if (!window.Hands || (reconhecer && !window.LibrasAlphabetRecognizer)) {
           throw new Error("Rastreamento de mão indisponível.");
         }
 
@@ -182,23 +203,106 @@ export function useLibras(
           minTrackingConfidence: 0.75,
         });
 
-        const rec = new window.LibrasAlphabetRecognizer();
+        const rec = reconhecer && window.LibrasAlphabetRecognizer
+          ? new window.LibrasAlphabetRecognizer()
+          : null;
         recRef.current = rec;
+        if (rec) {
+          void statusModelo()
+            .then((modelo) => {
+              if (vivo) modeloBackendAtivoRef.current = modelo.ready;
+            })
+            .catch(() => {
+              modeloBackendAtivoRef.current = false;
+            });
+        }
 
         hands.onResults((r) => {
           if (!vivo) return;
           const pontos = r.multiHandLandmarks?.[0] ?? null;
           desenhar(pontos);
+          quadroRef.current = pontos
+            ? {
+                landmarks: pontos.map((p) => ({ x: p.x, y: p.y, z: p.z ?? 0 })),
+                capturadoEm: performance.now(),
+              }
+            : null;
+          setMaoDetectada(Boolean(pontos));
 
           if (!pontos) {
-            rec.resetTracking();
+            rec?.resetTracking();
+            bufferBackendRef.current = [];
+            predicaoBackendRef.current = null;
             setLetra(null);
             setEmMovimento(false);
             liberadoRef.current = true; // mão saiu: libera repetir a letra
             return;
           }
 
-          const saida = rec.process(pontos, performance.now());
+          // A tela de treinamento precisa apenas dos landmarks crus. Evitar a
+          // classificação aqui reduz trabalho e re-renderizações no celular.
+          if (!rec) return;
+
+          const agora = performance.now();
+
+          // O modelo treinado no backend complementa as regras geométricas
+          // locais. A cadência e a janela de estabilidade vêm do fluxo HTML:
+          // no máximo uma chamada por 135 ms e quatro votos em sete quadros.
+          if (
+            modeloBackendAtivoRef.current &&
+            !backendOcupadoRef.current &&
+            agora - backendSolicitadoEmRef.current >= 135
+          ) {
+            backendOcupadoRef.current = true;
+            backendSolicitadoEmRef.current = agora;
+            void inferirLandmarks(pontos)
+              .then((predicao) => {
+                if (!vivo) return;
+                if (predicao.unknown || !predicao.letter) {
+                  bufferBackendRef.current = [];
+                  predicaoBackendRef.current = null;
+                  return;
+                }
+
+                const recebida = {
+                  letter: predicao.letter,
+                  confidence: predicao.confidence,
+                  recebidaEm: performance.now(),
+                };
+                const buffer = [...bufferBackendRef.current, recebida].slice(-7);
+                bufferBackendRef.current = buffer;
+                const iguais = buffer.filter((item) => item.letter === recebida.letter);
+                if (iguais.length >= 4) {
+                  predicaoBackendRef.current = {
+                    letter: recebida.letter,
+                    confidence:
+                      iguais.reduce((soma, item) => soma + item.confidence, 0) / iguais.length,
+                    recebidaEm: recebida.recebidaEm,
+                  };
+                }
+              })
+              .catch(() => {
+                // A classificação local continua funcionando sem rede.
+              })
+              .finally(() => {
+                backendOcupadoRef.current = false;
+              });
+          }
+
+          const local = rec.process(pontos, agora);
+          const neural = predicaoBackendRef.current;
+          const saida: Resultado =
+            neural &&
+            agora - neural.recebidaEm <= 700 &&
+            !local.dynamic &&
+            !local.motion?.moving
+              ? {
+                  status: "confirmado",
+                  letter: neural.letter,
+                  confidence: neural.confidence,
+                  motion: local.motion,
+                }
+              : local;
           setEmMovimento(Boolean(saida.motion?.moving));
 
           if (saida.status === "confirmado" && saida.letter) {
@@ -248,8 +352,12 @@ export function useLibras(
       if (pausaRef.current) clearTimeout(pausaRef.current);
       handsRef.current?.close?.();
       handsRef.current = null;
+      quadroRef.current = null;
+      modeloBackendAtivoRef.current = false;
+      predicaoBackendRef.current = null;
+      bufferBackendRef.current = [];
     };
-  }, [ativo, desenhar, registrarLetra, videoRef]);
+  }, [ativo, desenhar, reconhecer, registrarLetra, videoRef]);
 
   const frase = [...palavras, soletrando].filter(Boolean).join(" ");
 
@@ -276,8 +384,19 @@ export function useLibras(
     speechSynthesis.speak(fala);
   }, [frase]);
 
+  const obterQuadro = useCallback((): QuadroLandmarks | null => {
+    const quadro = quadroRef.current;
+    if (!quadro) return null;
+    return {
+      capturadoEm: quadro.capturadoEm,
+      landmarks: quadro.landmarks.map((p) => ({ ...p })),
+    };
+  }, []);
+
   return {
     canvasRef,
+    maoDetectada,
+    obterQuadro,
     letra,
     confianca,
     emMovimento,

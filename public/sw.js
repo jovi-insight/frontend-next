@@ -3,7 +3,7 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v4-recentes";
+const CACHE_NAME = "insight-pwa-v5-libras-training";
 const IMAGE_CACHE_NAME = "insight-images-v1";
 const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
 const ASSETS_TO_CACHE = [
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   "/library",
   "/folders",
   "/settings",
+  "/libras-training",
   "/translate",
   "/manifest.json",
   "/icons/icon-192x192.png",
