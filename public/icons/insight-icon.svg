@@ -1,39 +1,88 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">INSIGHT</title>
-  <desc id="desc">Símbolo da INSIGHT com a letra I, uma lente e um brilho de descoberta.</desc>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="72" y1="40" x2="448" y2="480" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#171A22"/>
-      <stop offset="1" stop-color="#050608"/>
+    <!-- Gradiente de Fundo -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090b14"/>
+      <stop offset="50%" stop-color="#0f1426"/>
+      <stop offset="100%" stop-color="#141830"/>
     </linearGradient>
-    <linearGradient id="beam" x1="256" y1="142" x2="256" y2="370" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"/>
-      <stop offset="0.52" stop-color="#D7FFF5"/>
-      <stop offset="1" stop-color="#8FE8D2"/>
-    </linearGradient>
-    <radialGradient id="lens" cx="0" cy="0" r="1" gradientTransform="translate(238 237) rotate(52) scale(72)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#EFFFFB"/>
-      <stop offset="0.42" stop-color="#9CF0DC"/>
-      <stop offset="1" stop-color="#35A88F"/>
+
+    <!-- Brilho Radial Central -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+      <stop offset="45%" stop-color="#6366f1" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
-    <filter id="shadow" x="100" y="86" width="312" height="352" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.5"/>
+
+    <!-- Gradiente Principal do Símbolo INSIGHT -->
+    <linearGradient id="insightGrad" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="30%" stop-color="#38bdf8"/>
+      <stop offset="70%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <!-- Gradiente de Brilho Secundário / Ângulo -->
+    <linearGradient id="accentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+
+    <!-- Borda Glassmorphism -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="50%" stop-color="#6366f1" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <!-- Sombra Suave -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
 
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="190" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="2"/>
-  <circle cx="256" cy="256" r="154" fill="#FFFFFF" fill-opacity="0.025" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
+  <!-- Fundo com cantos arredondados -->
+  <rect width="512" height="512" rx="112.64" fill="url(#bgGrad)" />
 
-  <g filter="url(#shadow)">
-    <rect x="156" y="120" width="200" height="44" rx="22" fill="#FFFFFF"/>
-    <rect x="156" y="348" width="200" height="44" rx="22" fill="#FFFFFF"/>
-    <rect x="232" y="142" width="48" height="228" rx="24" fill="url(#beam)"/>
-    <circle cx="256" cy="256" r="58" fill="#0A0C10" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="4"/>
-    <circle cx="256" cy="256" r="38" fill="url(#lens)"/>
-    <circle cx="243" cy="242" r="10" fill="#FFFFFF" fill-opacity="0.78"/>
+  <!-- Luz de fundo sutil -->
+  <circle cx="256" cy="256" r="230" fill="url(#centerGlow)" />
+
+  <!-- Borda sutil -->
+  <rect x="1.5" y="1.5" width="509" height="509" rx="112.64" fill="none" stroke="url(#borderGrad)" stroke-width="3" />
+
+  <!-- Grupo do Símbolo Central INSIGHT -->
+  <g transform="translate(0, 0)" filter="url(#glow)">
+
+    <!-- Anel de Foco / Lente Óptica Holográfica Superior Esquerda -->
+    <path d="M 176 130 C 220 106 292 106 336 130 C 348 136 352 152 344 162 C 336 172 320 176 308 170 C 276 154 236 154 204 170 C 192 176 176 172 168 162 C 160 152 164 136 176 130 Z"
+          fill="url(#insightGrad)" opacity="0.95" />
+
+    <!-- Corpo Central do 'I' e Prisma Óptico de Visão -->
+    <!-- Diamante / Centelha de Inspiração Superior (Ponto do I) -->
+    <path d="M 256 160 L 284 195 L 256 230 L 228 195 Z" fill="url(#accentGrad)" />
+    <circle cx="256" cy="195" r="7" fill="#ffffff" />
+
+    <!-- Pilar Dinâmico Central (Corpo do I) com Cortes Modernos -->
+    <path d="M 230 250 C 230 242 238 236 246 236 L 266 236 C 274 236 282 242 282 250 L 274 340 C 274 346 268 352 260 352 L 252 352 C 244 352 238 346 238 340 Z"
+          fill="url(#insightGrad)" />
+
+    <!-- Asas/Feixes de Luz Angulares 'Insight Aperture' -->
+    <!-- Feixe Esquerdo -->
+    <path d="M 148 230 C 140 240 144 256 156 262 L 210 286 C 218 290 224 286 226 278 L 232 254 C 234 246 228 240 220 236 L 166 218 C 156 214 144 220 148 230 Z"
+          fill="url(#insightGrad)" opacity="0.88" />
+
+    <!-- Feixe Direito -->
+    <path d="M 364 230 C 372 240 368 256 356 262 L 302 286 C 294 290 288 286 286 278 L 280 254 C 278 246 284 240 292 236 L 346 218 C 356 214 368 220 364 230 Z"
+          fill="url(#insightGrad)" opacity="0.88" />
+
+    <!-- Base / Arco de Foco Inferior -->
+    <path d="M 176 382 C 220 406 292 406 336 382 C 348 376 364 380 372 390 C 380 400 376 416 364 422 C 304 456 208 456 148 422 C 136 416 132 400 140 390 C 148 380 164 376 176 382 Z"
+          fill="url(#insightGrad)" opacity="0.95" />
+
+    <!-- Centelha Brilhante Central (Core de IA / Insight) -->
+    <circle cx="256" cy="275" r="14" fill="#ffffff" opacity="0.9" />
+    <circle cx="256" cy="275" r="6" fill="#38bdf8" />
   </g>
-
-  <path d="M370 106C370 129.196 388.804 148 412 148C388.804 148 370 166.804 370 190C370 166.804 351.196 148 328 148C351.196 148 370 129.196 370 106Z" fill="#B9FFE9"/>
-  <circle cx="143" cy="300" r="7" fill="#8FE8D2" fill-opacity="0.9"/>
 </svg>

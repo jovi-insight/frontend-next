@@ -3,17 +3,19 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import GuardaSessao from "@/components/GuardaSessao";
 import TopHeader from "@/components/TopHeader";
 import { getMaterias, criarMateria, confirmarConteudo, criarAula, type Materia } from "@/lib/api";
 import { janelaDeAula } from "@/lib/paginas-aula";
 import { useLocalStorage, gravarLocalStorage } from "@/lib/use-local-storage";
 import { avisar } from "@/lib/avisos";
+import { CHAVE_LIXEIRA, descartar, lerDescartados } from "@/lib/descartados";
 
 type ScanData = {
   cache_id: string;
   texto_extraido: string;
   materia_sugerida_id: string | null;
+  conteudo_lixo?: boolean;
+  motivo_lixo?: string | null;
 };
 
 type AulaPendente = {
@@ -22,6 +24,8 @@ type AulaPendente = {
   origem?: string;
   video?: string;
   materia_sugerida_id?: string | null;
+  recomendado_lixeira?: boolean;
+  motivo_lixeira?: string | null;
 };
 
 function OrganizeConteudo() {
@@ -64,11 +68,19 @@ function OrganizeConteudo() {
   }, [scanBruto]);
 
   const [materias, setMaterias] = useState<Materia[]>([]);
-  const [escolhida, setEscolhida] = useState<string | null>(null);
-  const [texto, setTexto] = useState("");
+  const [escolhidaManual, setEscolhida] = useState<string | null>(null);
+  const [textoEditado, setTextoEditado] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [mostrarTodas, setMostrarTodas] = useState(false);
+  const recomendadoLixeira = Boolean(
+    ehAula && aula ? aula.recomendado_lixeira : scan?.conteudo_lixo,
+  );
+  const motivoLixeira =
+    (ehAula && aula ? aula.motivo_lixeira : scan?.motivo_lixo) ||
+    "A captura parece vazia, acidental ou sem conteúdo útil de estudo.";
+  const [decisaoLixeira, setDecisaoLixeira] = useState<boolean | null>(null);
+  const salvarNaLixeira = decisaoLixeira ?? recomendadoLixeira;
 
   useEffect(() => {
     let ativo = true;
@@ -86,21 +98,9 @@ function OrganizeConteudo() {
     return scan?.materia_sugerida_id ?? null;
   }, [ehAula, aula?.materia_sugerida_id, scan?.materia_sugerida_id]);
 
-  const [iniciado, setIniciado] = useState(false);
-  if (!iniciado && (scan || (ehAula && aula))) {
-    setTexto(ehAula && aula ? aula.texto : scan?.texto_extraido ?? "");
-    if (sugerida) {
-      setEscolhida(sugerida);
-    }
-    setIniciado(true);
-  }
-
-  // Se a sugestão carregar depois ou se escolhida ainda estiver vazia, sincroniza com a recomendação da IA
-  useEffect(() => {
-    if (sugerida && !escolhida) {
-      setEscolhida(sugerida);
-    }
-  }, [sugerida, escolhida]);
+  const escolhida = escolhidaManual ?? sugerida;
+  const textoInicial = ehAula && aula ? aula.texto : scan?.texto_extraido ?? "";
+  const texto = textoEditado ?? textoInicial;
 
   // Ordena para que a matéria sugerida fique no topo
   const materiasOrdenadas = useMemo(() => {
@@ -151,6 +151,15 @@ function OrganizeConteudo() {
           JSON.stringify({ ...conteudo, materia_nome: materia?.nome ?? null }),
         );
         janelaDeAula.blobs = [];
+        if (salvarNaLixeira) {
+          descartar(
+            lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]"),
+            [conteudo.id],
+          );
+          avisar("Conteúdo salvo direto na Lixeira. Ele pode ser restaurado.", "sucesso");
+          router.push("/library?lixeira=1");
+          return;
+        }
         avisar(
           aula.origem === "transcricao"
             ? "Aula salva. O resumo sai da transcrição inteira."
@@ -169,6 +178,15 @@ function OrganizeConteudo() {
         "jovi_last_scan_result",
         JSON.stringify({ ...conteudo, materia_nome: materia?.nome ?? null }),
       );
+      if (salvarNaLixeira) {
+        descartar(
+          lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]"),
+          [conteudo.id],
+        );
+        avisar("Documento salvo direto na Lixeira. Ele pode ser restaurado.", "sucesso");
+        router.push("/library?lixeira=1");
+        return;
+      }
       avisar("Documento salvo no banco.", "sucesso");
       router.push(`/summary/${conteudo.id}`);
     } catch (e) {
@@ -286,9 +304,29 @@ function OrganizeConteudo() {
           className="form-input"
           rows={6}
           value={texto}
-          onChange={(e) => setTexto(e.target.value)}
+          onChange={(e) => setTextoEditado(e.target.value)}
           style={{ width: "100%", marginBottom: 28, resize: "vertical" }}
         />
+
+        {recomendadoLixeira && (
+          <section className="trash-recommendation" role="status">
+            <span className="material-symbols-outlined" aria-hidden="true">
+              delete_sweep
+            </span>
+            <div>
+              <h2>Recomendação: enviar para a Lixeira</h2>
+              <p>{motivoLixeira}</p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={salvarNaLixeira}
+                  onChange={(evento) => setDecisaoLixeira(evento.target.checked)}
+                />
+                Salvar direto na Lixeira (pode ser restaurado depois)
+              </label>
+            </div>
+          </section>
+        )}
 
         <section style={{ marginBottom: 36 }}>
           <div className="section-header" style={{ marginBottom: 16 }}>
@@ -399,7 +437,7 @@ function OrganizeConteudo() {
             "Buscando vídeos recomendados…"
           ) : (
             <>
-              Confirmar e salvar
+              {salvarNaLixeira ? "Salvar na Lixeira" : "Confirmar e salvar"}
               <span className="material-symbols-outlined" style={{ fontSize: 18, marginLeft: 8 }}>
                 folder_shared
               </span>

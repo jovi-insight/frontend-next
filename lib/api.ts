@@ -57,6 +57,20 @@ export type AnaliseImagem = {
   texto_extraido: string;
   materia_sugerida_id: string | null;
   cache_id: string;
+  conteudo_lixo: boolean;
+  motivo_lixo: string | null;
+};
+
+export type VideoUsuario = {
+  id: string;
+  nome: string;
+  mime_type: string;
+  tamanho: number;
+  duracao: number;
+  url_storage: string;
+  transcricao: Record<string, unknown> | null;
+  resumo: string | null;
+  criado_em: string;
 };
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -209,6 +223,41 @@ export async function criarAula(
 export async function getRecentes(limite = 100): Promise<Conteudo[]> {
   const res = await fetch(`${BASE_URL}/dashboard/recentes?limit=${limite}`);
   return handle(res, "Falha ao carregar recentes");
+}
+
+// ─── Vídeos do usuário ───────────────────────────────────
+export async function enviarVideoUsuario(
+  arquivo: File,
+  duracao = 0,
+): Promise<VideoUsuario> {
+  const form = new FormData();
+  form.append("arquivo", arquivo, arquivo.name || "video.webm");
+  form.append("duracao", String(Math.max(0, Number(duracao) || 0)));
+  const res = await fetch(`${BASE_URL}/videos`, { method: "POST", body: form });
+  return handle(res, "Falha ao sincronizar o vídeo");
+}
+
+export async function listarVideosUsuario(): Promise<VideoUsuario[]> {
+  const res = await fetch(`${BASE_URL}/videos`);
+  return handle(res, "Falha ao carregar os vídeos do banco");
+}
+
+export async function obterVideoUsuario(id: string): Promise<VideoUsuario> {
+  const res = await fetch(`${BASE_URL}/videos/${id}`);
+  return handle(res, "Falha ao buscar o vídeo no banco");
+}
+
+export async function atualizarVideoUsuario(
+  id: string,
+  dados: { transcricao?: Record<string, unknown> | null; resumo?: string | null },
+): Promise<VideoUsuario> {
+  const res = await pedirJson(`/videos/${id}`, "PATCH", dados);
+  return handle(res, "Falha ao atualizar o vídeo no banco");
+}
+
+export async function removerVideoUsuario(id: string): Promise<null> {
+  const res = await fetch(`${BASE_URL}/videos/${id}`, { method: "DELETE" });
+  return handle(res, "Falha ao remover o vídeo do banco");
 }
 
 // ─── Pastas e matérias ────────────────────────────────────

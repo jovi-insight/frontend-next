@@ -158,6 +158,31 @@ export function useCamera(ativa = true) {
     }
   }, []);
 
+  /**
+   * Mede o brilho médio do quadro atual (0 = escuro, 255 = claro). Serve ao
+   * flash AUTO sem enviar imagem, pedir permissão extra ou depender da IA.
+   */
+  const medirLuminosidade = useCallback((): number | null => {
+    const video = videoRef.current;
+    if (!video?.videoWidth || !video.videoHeight) return null;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 32;
+      canvas.height = 24;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let soma = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        soma += pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722;
+      }
+      return soma / (pixels.length / 4);
+    } catch {
+      return null;
+    }
+  }, []);
+
   /** O stream atual, para quem precisa gravar (modo AULA). */
   const obterStream = useCallback(() => streamRef.current, []);
 
@@ -208,6 +233,7 @@ export function useCamera(ativa = true) {
     real,
     temLanterna,
     alternarLanterna,
+    medirLuminosidade,
     obterStream,
     capturar,
     erro,

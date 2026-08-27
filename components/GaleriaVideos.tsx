@@ -6,6 +6,7 @@ import {
   adicionarVideo,
   listarVideos,
   removerVideo,
+  sincronizarVideosPendentes,
   type VideoItem,
 } from "@/lib/video-library";
 import { avisar } from "@/lib/avisos";
@@ -35,15 +36,17 @@ function formatarDuracao(segundos: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/** Extrai frame de pré-visualização do vídeo Blob. */
-function extrairMiniatura(blob: Blob): Promise<string | null> {
+/** Extrai um frame do vídeo local ou da URL persistida no backend. */
+function extrairMiniatura(origem: Blob | string): Promise<string | null> {
   return new Promise((resolve) => {
     try {
-      const url = URL.createObjectURL(blob);
+      const url = typeof origem === "string" ? origem : URL.createObjectURL(origem);
+      const revogar = typeof origem !== "string";
       const video = document.createElement("video");
       video.preload = "auto";
       video.muted = true;
       video.playsInline = true;
+      if (!revogar) video.crossOrigin = "anonymous";
       video.src = url;
 
       let resolvido = false;
@@ -51,7 +54,7 @@ function extrairMiniatura(blob: Blob): Promise<string | null> {
         if (resolvido) return;
         resolvido = true;
         clearTimeout(timer);
-        URL.revokeObjectURL(url);
+        if (revogar) URL.revokeObjectURL(url);
         resolve(resultado);
       };
 
@@ -114,15 +117,16 @@ function VideoCard({
 
   useEffect(() => {
     let ativo = true;
-    if (video.blob) {
-      extrairMiniatura(video.blob).then((t) => {
+    const origem = video.blob || video.remoteUrl;
+    if (origem) {
+      extrairMiniatura(origem).then((t) => {
         if (ativo && t) setThumb(t);
       });
     }
     return () => {
       ativo = false;
     };
-  }, [video.blob]);
+  }, [video.blob, video.remoteUrl]);
 
   return (
     <article className="video-library-card">
@@ -151,9 +155,13 @@ function VideoCard({
           {video.name}
         </strong>
         <span className="video-card-state">
-          {video.transcription
-            ? `${video.transcription.segments.length} trechos legendados`
-            : "Aguardando transcrição"}
+          {video.syncStatus === "pendente"
+            ? "Salvo no aparelho • sincronização pendente"
+            : video.syncStatus === "sincronizando"
+              ? "Sincronizando com o banco…"
+              : video.transcription
+                ? `${video.transcription.segments.length} trechos legendados`
+                : "Salvo no banco • aguardando transcrição"}
         </span>
       </div>
 
@@ -174,9 +182,8 @@ function VideoCard({
 }
 
 /**
- * Galeria local de vídeos: as aulas gravadas no modo AULA e os arquivos que o
- * aluno adiciona à mão. Fica no IndexedDB do navegador — nada disso sobe para
- * o backend.
+ * Galeria híbrida: IndexedDB para uso offline e backend para sincronizar entre
+ * aparelhos.
  */
 export default function GaleriaVideos() {
   const router = useRouter();
@@ -192,6 +199,12 @@ export default function GaleriaVideos() {
     listarVideos()
       .then((itens) => ativo && guardar(itens))
       .catch((e: Error) => ativo && setErro(e.message));
+    sincronizarVideosPendentes()
+      .then(() => listarVideos())
+      .then((itens) => ativo && guardar(itens))
+      .catch(() => {
+        // Sem rede: os vídeos locais já foram exibidos pela primeira leitura.
+      });
     return () => {
       ativo = false;
     };
@@ -214,6 +227,11 @@ export default function GaleriaVideos() {
     setErro(null);
     try {
       const item = await adicionarVideo(arquivo, await lerDuracao(arquivo));
+      if (item.syncStatus === "pendente") {
+        avisar("Vídeo salvo no aparelho. A sincronização será retomada quando houver conexão.", "info");
+      } else {
+        avisar("Vídeo salvo no banco e disponível offline.", "sucesso");
+      }
       router.push(`/player/${item.id}`);
     } catch (e) {
       avisar((e as Error).message, "erro");
@@ -223,11 +241,11 @@ export default function GaleriaVideos() {
   }
 
   async function apagar(item: VideoItem) {
-    if (!confirm(`Remover "${item.name}" da galeria deste navegador?`)) return;
+    if (!confirm(`Remover "${item.name}" da galeria e do banco?`)) return;
     try {
       await removerVideo(item.id);
       await carregar();
-      avisar("Vídeo removido da galeria.", "sucesso");
+      avisar("Vídeo removido da galeria e do banco.", "sucesso");
     } catch (e) {
       avisar((e as Error).message, "erro");
     }

@@ -152,8 +152,8 @@ function FoldersConteudo() {
   return (
     <>
 
-      <main className="container archive-main sem-topbar">
-        <nav className="breadcrumb">
+      <main className="container archive-main sem-topbar folders-main">
+        <nav className="breadcrumb folders-breadcrumb" aria-label="Navegação das pastas">
           <button className="link-limpo" onClick={() => setNivel({ tipo: "raiz" })}>
             Matérias
           </button>
@@ -180,13 +180,13 @@ function FoldersConteudo() {
           )}
         </nav>
 
-        <div className="secao-topo">
+        <div className="secao-topo folders-topbar">
           <div className="section-title">
             <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
             <h2>{pastaAtual?.nome ?? materiaAtual?.nome ?? "Matérias"}</h2>
           </div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="folders-toolbar">
             {nivel.tipo === "raiz" && (
               <button
                 type="button"
@@ -227,7 +227,7 @@ function FoldersConteudo() {
             <div className="spinner" />
           </div>
         ) : (
-          <div className="library-grid">
+          <div className="library-grid folders-grid">
             {nivel.tipo !== "raiz" && (
               <CardVoltar
                 onClick={() =>
@@ -286,12 +286,14 @@ function FoldersConteudo() {
                       description
                     </span>
                   </div>
-                  <h3 className="card-title">
-                    {(c.extracao_original || "Documento").split("\n")[0].slice(0, 22)}
-                  </h3>
-                  <p className="card-subtitle">
-                    {c.resumo_ia ? "Resumo pronto" : "Sem resumo"}
-                  </p>
+                  <div className="folder-card-copy">
+                    <h3 className="card-title">
+                      {(c.extracao_original || "Documento").split("\n")[0].slice(0, 48)}
+                    </h3>
+                    <p className="card-subtitle">
+                      {c.resumo_ia ? "Resumo pronto" : "Sem resumo"}
+                    </p>
+                  </div>
                 </Link>
               ))}
 
@@ -337,7 +339,7 @@ function VazioSeNecessario({
         : "Nenhum documento nesta pasta.";
 
   return (
-    <p style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, opacity: 0.5, fontSize: 13 }}>
+    <p className="folders-empty">
       {texto}
     </p>
   );
@@ -351,7 +353,10 @@ function CardVoltar({ onClick }: { onClick: () => void }) {
           arrow_back
         </span>
       </div>
-      <h3 className="card-title">Voltar</h3>
+      <div className="folder-card-copy">
+        <h3 className="card-title">Voltar</h3>
+        <p className="card-subtitle">Nível anterior</p>
+      </div>
     </button>
   );
 }
@@ -395,8 +400,10 @@ function CardPasta({
           {icone}
         </span>
       </div>
-      <h3 className="card-title">{titulo}</h3>
-      <p className="card-subtitle">{subtitulo}</p>
+      <div className="folder-card-copy">
+        <h3 className="card-title">{titulo}</h3>
+        <p className="card-subtitle">{subtitulo}</p>
+      </div>
 
       {(onRenomear || onExcluir) && (
         <div className="card-acoes">

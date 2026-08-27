@@ -1,31 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
 import { PERFIS, alternarPerfil, lerPerfis, CHAVE_PERFIL, gravarPerfis } from "@/lib/perfil";
-import {
-  useLocalStorage,
-  gravarLocalStorage,
-  removerLocalStorage,
-} from "@/lib/use-local-storage";
+import { useLocalStorage } from "@/lib/use-local-storage";
 import { avisar } from "@/lib/avisos";
-import { BASE_URL } from "@/lib/api";
-
-const URL_LIBRAS_PADRAO = BASE_URL;
 
 function SettingsConteudo() {
-  const router = useRouter();
   // Lidos direto do localStorage: sem useEffect + setState, que renderizaria
   // a tela duas vezes a cada visita.
   const perfilSalvo = useLocalStorage(CHAVE_PERFIL);
-  const urlSalva = useLocalStorage("jovi.libras.ml.url", URL_LIBRAS_PADRAO);
-
-  // Só o campo de texto precisa de estado próprio: ele é editável antes de
-  // salvar. `key` faz o input renascer quando o valor salvo muda.
-  const [urlLibras, setUrlLibras] = useState(urlSalva);
-  const [salvo, setSalvo] = useState(false);
   const perfis = lerPerfis(perfilSalvo);
 
   function alternar(id: (typeof PERFIS)[number]["id"]) {
@@ -40,12 +24,6 @@ function SettingsConteudo() {
   function limparPerfis() {
     gravarPerfis([]);
     avisar("Interface padrão, sem adaptações.", "sucesso");
-  }
-
-  function salvarLibras() {
-    gravarLocalStorage("jovi.libras.ml.url", urlLibras.replace(/\/$/, ""));
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 2500);
   }
 
   return (
@@ -73,10 +51,10 @@ function SettingsConteudo() {
                 justifyContent: "center",
               }}
             >
-              <span className="material-symbols-outlined">cloud</span>
+              <span className="material-symbols-outlined">add_to_drive</span>
             </div>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 700 }}>Supabase Storage</p>
+              <p style={{ fontSize: 14, fontWeight: 700 }}>Google Drive integrado</p>
               <p
                 style={{
                   fontSize: 10,
@@ -85,7 +63,7 @@ function SettingsConteudo() {
                   color: "var(--on-surface-variant)",
                 }}
               >
-                Conectado como: academic_user_04
+                Conteúdos sincronizados com segurança
               </p>
             </div>
           </div>
@@ -97,7 +75,7 @@ function SettingsConteudo() {
               textTransform: "uppercase",
             }}
           >
-            Ativo
+            Integrado
           </span>
         </div>
 
@@ -168,27 +146,34 @@ function SettingsConteudo() {
         <div className="section-header">
           <div className="section-title">
             <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
-            <h2>Microserviço de Libras</h2>
+            <h2>Integrações</h2>
           </div>
         </div>
 
-        <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>
-          Endereço do serviço que transcreve vídeos e reconhece o alfabeto manual. Só mude se ele
-          estiver em outra máquina ou porta.
-        </p>
-
-        <div className="quiz-controles" style={{ marginBottom: 40 }}>
-          <input
-            className="form-input"
-            value={urlLibras}
-            onChange={(e) => setUrlLibras(e.target.value)}
-            placeholder="http://localhost:8001"
-            aria-label="URL do microserviço de Libras"
-            style={{ flex: 1, minWidth: 220 }}
-          />
-          <button type="button" className="quiz-gerar" onClick={salvarLibras}>
-            {salvo ? "Salvo" : "Salvar"}
-          </button>
+        <div className="card" style={{ marginBottom: 40 }}>
+          <div className="flex items-center gap-4">
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: "rgba(255,214,0,0.12)",
+                color: "var(--primary)",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <span className="material-symbols-outlined">cloud_done</span>
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700 }}>INSIGHT + Google Drive</p>
+              <p style={{ fontSize: 11, color: "var(--on-surface-variant)", lineHeight: 1.5 }}>
+                Imagens, textos e resumos entram no fluxo de sincronização do Drive ao salvar.
+                Vídeos ficam disponíveis no banco e também no aparelho para uso offline.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="section-header">
@@ -212,7 +197,7 @@ function SettingsConteudo() {
             <div>
               <p style={{ fontSize: 14, fontWeight: 700 }}>Instalar INSIGHT</p>
               <p style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>
-                Funciona como app nativo na tela inicial, em tela cheia e com cache rápido.
+                Tela cheia, cache offline, flash e gesto vertical de zoom direto na câmera.
               </p>
             </div>
           </div>
