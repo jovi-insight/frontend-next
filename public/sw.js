@@ -6,7 +6,6 @@
 const CACHE_NAME = "jovi-pwa-v1";
 const ASSETS_TO_CACHE = [
   "/",
-  "/login",
   "/library",
   "/folders",
   "/settings",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuardaSessao from "@/components/GuardaSessao";
@@ -361,8 +361,16 @@ function OrganizeConteudo() {
 
 export default function OrganizePage() {
   return (
-    <GuardaSessao>
+    <Suspense
+      fallback={
+        <main className="container archive-main sem-topbar">
+          <div className="loading-container">
+            <div className="spinner" />
+          </div>
+        </main>
+      }
+    >
       <OrganizeConteudo />
-    </GuardaSessao>
+    </Suspense>
   );
 }

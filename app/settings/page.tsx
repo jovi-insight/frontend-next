@@ -47,13 +47,6 @@ function SettingsConteudo() {
     setTimeout(() => setSalvo(false), 2500);
   }
 
-  function sair() {
-    if (!confirm("Deseja realmente encerrar a sessão?")) return;
-    removerLocalStorage("jovi_session");
-    removerLocalStorage("jovi_user");
-    router.replace("/login");
-  }
-
   return (
     <>
 
@@ -236,25 +229,6 @@ function SettingsConteudo() {
             Instalar / Atualizar App
           </button>
         </div>
-
-        <div className="section-header">
-          <div className="section-title">
-            <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
-            <h2>Sessão</h2>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="quiz-gerar"
-          onClick={sair}
-          style={{ background: "var(--error)", color: "var(--on-error)" }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            logout
-          </span>
-          Terminar Sessão Operativa
-        </button>
 
         <section
           style={{
