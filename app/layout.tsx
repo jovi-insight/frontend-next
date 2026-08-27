@@ -3,6 +3,7 @@ import "./globals.css";
 import AplicaPerfil from "@/components/AplicaPerfil";
 import Avisos from "@/components/Avisos";
 import PwaRegister from "@/components/PwaRegister";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
   title: "JOVI | Insight Capture System",
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body>
         <PwaRegister />
+        <PwaInstallPrompt />
         {/* O perfil precisa valer em toda página, não só na tela de Ajustes. */}
         <AplicaPerfil />
         {children}
