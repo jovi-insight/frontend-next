@@ -16,7 +16,6 @@ const VAZIA: ConfirmacaoLibras = { visivel: null, confianca: 0, registrar: null 
 export function criarConfirmadorLibras({
   tempoConfirmacaoMs = 600,
   tempoLiberacaoMs = 300,
-  confiancaMinima = 0.9,
   confiancaMovimento = 0.86,
 } = {}) {
   let candidata: string | null = null;
@@ -40,7 +39,7 @@ export function criarConfirmadorLibras({
     processar(leitura: LeituraLibras, agora: number): ConfirmacaoLibras {
       const confirmada = leitura.status === "confirmado" && Boolean(leitura.letter);
       const confianca = leitura.confidence ?? 0;
-      const forte = confirmada && confianca >= confiancaMinima;
+      const forte = confirmada && !leitura.dynamic;
       const movimentoForte =
         confirmada && Boolean(leitura.dynamic) && confianca >= confiancaMovimento;
 

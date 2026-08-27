@@ -47,11 +47,11 @@ const incerta = { status: "incerto" };
     confianca: 0,
     registrar: null,
   });
-  filtro.processar(confirmada("B", 0.89), 100);
-  assert.deepEqual(filtro.processar(confirmada("B", 0.89), 700), {
-    visivel: null,
-    confianca: 0,
-    registrar: null,
+  filtro.processar(confirmada("B", 0.56), 100);
+  assert.deepEqual(filtro.processar(confirmada("B", 0.56), 700), {
+    visivel: "B",
+    confianca: 0.56,
+    registrar: "B",
   });
 }
 
