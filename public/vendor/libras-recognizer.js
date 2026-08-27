@@ -853,7 +853,9 @@
                 pinkyOnly: extension[4] > 0.76 && extension[1] < 0.35 && extension[2] < 0.35 && extension[3] < 0.35,
                 cShape
             });
-            this.motionBuffer = this.motionBuffer.filter((sample) => timestamp - sample.time <= 1150);
+            // O J costuma ser desenhado mais devagar na câmera frontal. Uma
+            // janela um pouco maior preserva a haste e a curva no mesmo gesto.
+            this.motionBuffer = this.motionBuffer.filter((sample) => timestamp - sample.time <= 1450);
 
             const recent = this.motionBuffer.filter((sample) => timestamp - sample.time <= 260);
             let speed = 0;
@@ -988,11 +990,11 @@
             }
 
             const pinkySamples = this.motionBuffer.filter((sample) => sample.pinkyOnly);
-            if (pinkySamples.length >= 9) {
+            if (pinkySamples.length >= 7) {
                 const trajectory = this.normalizeScreenTrajectory(pinkySamples, 'pinkyScreen');
                 const stats = this.trajectoryStats(trajectory, 'pinkyScreen');
-                const curvedEnough = stats.path > Math.max(0.65, stats.direct * 1.18);
-                if (stats.xSpan > 0.22 && stats.ySpan > 0.38 && curvedEnough) {
+                const curvedEnough = stats.path > Math.max(0.55, stats.direct * 1.14);
+                if (stats.xSpan > 0.16 && stats.ySpan > 0.28 && curvedEnough) {
                     return this.confirmDynamic('J', 0.87, 'movimento-j', timestamp);
                 }
             }
@@ -1045,7 +1047,11 @@
             // C/Ç, I/J e a postura inicial de Z precisam de tempo para sabermos
             // se o usuário manterá a letra estática ou começará a trajetória.
             const canBecomeDynamic = ['C', 'D', 'G', 'I'].includes(prediction.letter);
-            const minimumHoldTime = canBecomeDynamic ? 620 : 0;
+            // I e J começam com a mesma configuração. Dar mais tempo ao I
+            // evita registrá-lo antes de o usuário terminar a curva do J.
+            const minimumHoldTime = prediction.letter === 'I'
+                ? 1100
+                : (canBecomeDynamic ? 620 : 0);
             if (matching.length < this.minimumVotes || timestamp - this.staticCandidateSince < minimumHoldTime) {
                 return { ...prediction, status: 'estabilizando', motion };
             }

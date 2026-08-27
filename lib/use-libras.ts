@@ -244,7 +244,7 @@ export function useLibras(
         );
         if (reconhecer || calibrar) {
           await carregarScriptComRetry(
-            "/vendor/libras-recognizer.js?v=remove-x-y-20260827",
+            "/vendor/libras-recognizer.js?v=j-gesture-20260827",
             () => typeof window.LibrasAlphabetRecognizer === "function",
             "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
           );
