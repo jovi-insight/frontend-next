@@ -2,10 +2,12 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "JOVI — Insight Capture System",
-    short_name: "JOVI",
+    name: "INSIGHT — Capture, estude e evolua",
+    short_name: "INSIGHT",
     description: "Captura inteligente de aulas, transcrição, resumos por IA e acessibilidade.",
     start_url: "/",
+    id: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#121212",
     theme_color: "#121212",

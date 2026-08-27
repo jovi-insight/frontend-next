@@ -6,14 +6,14 @@ import PwaRegister from "@/components/PwaRegister";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
-  title: "JOVI | Insight Capture System",
+  title: "INSIGHT | Capture, estude e evolua",
   description:
     "Captura e organização de anotações com OCR, resumo por IA e recursos de acessibilidade.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "JOVI",
+    title: "INSIGHT",
   },
   icons: {
     icon: "/favicon.ico",
@@ -38,7 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="JOVI" />
+        <meta name="apple-mobile-web-app-title" content="INSIGHT" />
         {/* Material Symbols é fonte de ícones variável e não passa pelo
             next/font; a Inter já vem no @import do jovi.css.
             display=block e não optional: com a fonte ausente o navegador

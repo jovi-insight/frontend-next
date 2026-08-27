@@ -9,7 +9,7 @@ import Link from "next/link";
  * pela câmera e voltar cairia na tela de organizar, já consumida).
  */
 export default function TopHeader({
-  titulo = "JOVI",
+  titulo = "INSIGHT",
   voltarPara = "/library",
 }: {
   titulo?: string;

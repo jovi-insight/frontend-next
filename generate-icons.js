@@ -1,0 +1,136 @@
+const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
+
+// SVG do ícone INSIGHT - Estética Premium Ultra-Moderna
+function getSvg(size, isMaskable = false) {
+  const cornerRadius = isMaskable ? 0 : size * 0.22;
+  const padding = isMaskable ? size * 0.12 : 0; // safe area para maskable
+  
+  return `
+<svg width="${size}" height="${size}" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradiente de Fundo -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090b14"/>
+      <stop offset="50%" stop-color="#0f1426"/>
+      <stop offset="100%" stop-color="#141830"/>
+    </linearGradient>
+
+    <!-- Brilho Radial Central -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+      <stop offset="45%" stop-color="#6366f1" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Gradiente Principal do Símbolo INSIGHT -->
+    <linearGradient id="insightGrad" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="30%" stop-color="#38bdf8"/>
+      <stop offset="70%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <!-- Gradiente de Brilho Secundário / Ângulo -->
+    <linearGradient id="accentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+
+    <!-- Borda Glassmorphism -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="50%" stop-color="#6366f1" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <!-- Sombra Suave -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Fundo com cantos arredondados -->
+  <rect width="512" height="512" rx="${cornerRadius}" fill="url(#bgGrad)" />
+  
+  <!-- Luz de fundo sutil -->
+  <circle cx="256" cy="256" r="230" fill="url(#centerGlow)" />
+  
+  <!-- Borda sutil -->
+  ${!isMaskable ? `<rect x="1.5" y="1.5" width="509" height="509" rx="${cornerRadius}" fill="none" stroke="url(#borderGrad)" stroke-width="3" />` : ''}
+
+  <!-- Grupo do Símbolo Central INSIGHT -->
+  <g transform="translate(0, 0)" filter="url(#glow)">
+    
+    <!-- Anel de Foco / Lente Óptica Holográfica Superior Esquerda -->
+    <path d="M 176 130 C 220 106 292 106 336 130 C 348 136 352 152 344 162 C 336 172 320 176 308 170 C 276 154 236 154 204 170 C 192 176 176 172 168 162 C 160 152 164 136 176 130 Z"
+          fill="url(#insightGrad)" opacity="0.95" />
+
+    <!-- Corpo Central do 'I' e Prisma Óptico de Visão -->
+    <!-- Diamante / Centelha de Inspiração Superior (Ponto do I) -->
+    <path d="M 256 160 L 284 195 L 256 230 L 228 195 Z" fill="url(#accentGrad)" />
+    <circle cx="256" cy="195" r="7" fill="#ffffff" />
+
+    <!-- Pilar Dinâmico Central (Corpo do I) com Cortes Modernos -->
+    <path d="M 230 250 C 230 242 238 236 246 236 L 266 236 C 274 236 282 242 282 250 L 274 340 C 274 346 268 352 260 352 L 252 352 C 244 352 238 346 238 340 Z"
+          fill="url(#insightGrad)" />
+
+    <!-- Asas/Feixes de Luz Angulares 'Insight Aperture' -->
+    <!-- Feixe Esquerdo -->
+    <path d="M 148 230 C 140 240 144 256 156 262 L 210 286 C 218 290 224 286 226 278 L 232 254 C 234 246 228 240 220 236 L 166 218 C 156 214 144 220 148 230 Z"
+          fill="url(#insightGrad)" opacity="0.88" />
+
+    <!-- Feixe Direito -->
+    <path d="M 364 230 C 372 240 368 256 356 262 L 302 286 C 294 290 288 286 286 278 L 280 254 C 278 246 284 240 292 236 L 346 218 C 356 214 368 220 364 230 Z"
+          fill="url(#insightGrad)" opacity="0.88" />
+
+    <!-- Base / Arco de Foco Inferior -->
+    <path d="M 176 382 C 220 406 292 406 336 382 C 348 376 364 380 372 390 C 380 400 376 416 364 422 C 304 456 208 456 148 422 C 136 416 132 400 140 390 C 148 380 164 376 176 382 Z"
+          fill="url(#insightGrad)" opacity="0.95" />
+
+    <!-- Centelha Brilhante Central (Core de IA / Insight) -->
+    <circle cx="256" cy="275" r="14" fill="#ffffff" opacity="0.9" />
+    <circle cx="256" cy="275" r="6" fill="#38bdf8" />
+  </g>
+</svg>
+`;
+}
+
+async function generate() {
+  const iconsDir = path.join(__dirname, 'public', 'icons');
+  if (!fs.existsSync(iconsDir)) {
+    fs.mkdirSync(iconsDir, { recursive: true });
+  }
+
+  const standard512 = Buffer.from(getSvg(512, false));
+  const maskable512 = Buffer.from(getSvg(512, true));
+
+  // 1. icon-512x512.png
+  await sharp(standard512).resize(512, 512).png().toFile(path.join(iconsDir, 'icon-512x512.png'));
+  console.log('✅ icon-512x512.png gerado');
+
+  // 2. icon-192x192.png
+  await sharp(standard512).resize(192, 192).png().toFile(path.join(iconsDir, 'icon-192x192.png'));
+  console.log('✅ icon-192x192.png gerado');
+
+  // 3. icon-maskable-512x512.png
+  await sharp(maskable512).resize(512, 512).png().toFile(path.join(iconsDir, 'icon-maskable-512x512.png'));
+  console.log('✅ icon-maskable-512x512.png gerado');
+
+  // 4. icon-maskable-192x192.png
+  await sharp(maskable512).resize(192, 192).png().toFile(path.join(iconsDir, 'icon-maskable-192x192.png'));
+  console.log('✅ icon-maskable-192x192.png gerado');
+
+  // 5. apple-touch-icon.png (180x180)
+  await sharp(standard512).resize(180, 180).png().toFile(path.join(iconsDir, 'apple-touch-icon.png'));
+  console.log('✅ apple-touch-icon.png gerado');
+
+  // 6. favicon.png (64x64)
+  await sharp(standard512).resize(64, 64).png().toFile(path.join(__dirname, 'public', 'favicon.png'));
+  console.log('✅ favicon.png gerado');
+}
+
+generate().catch(console.error);

@@ -1,6 +1,6 @@
-# JOVI Frontend (Next.js)
+# INSIGHT Frontend (Next.js)
 
-Interface web moderna do **JOVI** (Insight Capture System), construída com Next.js 16 (App Router), React 19 e TypeScript.
+Interface web moderna do **INSIGHT**, construída com Next.js 16 (App Router), React 19 e TypeScript.
 
 ## 🚀 Funcionalidades
 
@@ -15,7 +15,7 @@ Interface web moderna do **JOVI** (Insight Capture System), construída com Next
 
 - **Framework**: [Next.js](https://nextjs.org/) (App Router)
 - **Linguagem**: [TypeScript](https://www.typescriptlang.org/)
-- **Estilização**: CSS Modular & Design System JOVI
+- **Estilização**: CSS Modular & Design System INSIGHT
 - **Armazenamento Local**: IndexedDB (vídeos) & LocalStorage (preferências e cache)
 
 ## 📦 Como Rodar Localmente

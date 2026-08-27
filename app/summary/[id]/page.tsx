@@ -106,7 +106,7 @@ function SummaryConteudo({ id }: { id: string }) {
     if (!texto) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Resumo JOVI", text: texto });
+        await navigator.share({ title: "Resumo INSIGHT", text: texto });
         return;
       } catch {
         return; // usuário cancelou o compartilhamento

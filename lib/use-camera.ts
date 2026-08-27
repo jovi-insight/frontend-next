@@ -28,6 +28,7 @@ export function useCamera(ativa = true) {
   const [fps, setFps] = useState<Fps>(30);
   const [zoom, setZoom] = useState<number>(1);
   const [capacidadesZoom, setCapacidadesZoom] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [zoomNativo, setZoomNativo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pronta, setPronta] = useState(false);
   const [temLanterna, setTemLanterna] = useState(false);
@@ -44,6 +45,7 @@ export function useCamera(ativa = true) {
       setPronta(false);
       setErro(null);
       setZoom(1);
+      setZoomNativo(false);
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error("Este navegador não expõe a câmera.");
@@ -80,12 +82,14 @@ export function useCamera(ativa = true) {
 
         setTemLanterna(Boolean(capacidades?.torch));
         if (capacidades?.zoom) {
+          setZoomNativo(true);
           setCapacidadesZoom({
             min: capacidades.zoom.min || 1,
             max: capacidades.zoom.max || 5,
             step: capacidades.zoom.step || 0.1,
           });
         } else {
+          setZoomNativo(false);
           setCapacidadesZoom({ min: 1, max: 5, step: 0.1 });
         }
 
@@ -122,19 +126,23 @@ export function useCamera(ativa = true) {
 
   /** Ajusta o zoom óptico/digital da câmera com fallback via CSS/Canvas */
   const ajustarZoom = useCallback(async (novoZoom: number) => {
-    const valor = Math.max(1, Math.min(5, Number(novoZoom) || 1));
+    const minimo = Math.max(1, capacidadesZoom?.min ?? 1);
+    const maximo = Math.max(minimo, Math.min(5, capacidadesZoom?.max ?? 5));
+    const valor = Math.max(minimo, Math.min(maximo, Number(novoZoom) || minimo));
     setZoom(valor);
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) {
+    if (track && zoomNativo) {
       try {
         await track.applyConstraints({
           advanced: [{ zoom: valor } as MediaTrackConstraintSet],
         });
       } catch {
-        // Fallback digital silencioso
+        // Alguns Androids anunciam zoom nas capacidades, mas rejeitam a
+        // constraint durante o stream. A interface continua via CSS/Canvas.
+        setZoomNativo(false);
       }
     }
-  }, []);
+  }, [capacidadesZoom, zoomNativo]);
 
   /** Lanterna de verdade, via constraint `torch`. */
   const alternarLanterna = useCallback(async (ligar: boolean) => {
@@ -195,6 +203,7 @@ export function useCamera(ativa = true) {
     setFps,
     zoom,
     capacidadesZoom,
+    zoomNativo,
     ajustarZoom,
     real,
     temLanterna,

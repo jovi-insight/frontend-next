@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">INSIGHT</title>
+  <desc id="desc">Símbolo da INSIGHT com a letra I, uma lente e um brilho de descoberta.</desc>
+  <defs>
+    <linearGradient id="bg" x1="72" y1="40" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171A22"/>
+      <stop offset="1" stop-color="#050608"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="256" y1="142" x2="256" y2="370" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.52" stop-color="#D7FFF5"/>
+      <stop offset="1" stop-color="#8FE8D2"/>
+    </linearGradient>
+    <radialGradient id="lens" cx="0" cy="0" r="1" gradientTransform="translate(238 237) rotate(52) scale(72)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EFFFFB"/>
+      <stop offset="0.42" stop-color="#9CF0DC"/>
+      <stop offset="1" stop-color="#35A88F"/>
+    </radialGradient>
+    <filter id="shadow" x="100" y="86" width="312" height="352" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="2"/>
+  <circle cx="256" cy="256" r="154" fill="#FFFFFF" fill-opacity="0.025" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
+
+  <g filter="url(#shadow)">
+    <rect x="156" y="120" width="200" height="44" rx="22" fill="#FFFFFF"/>
+    <rect x="156" y="348" width="200" height="44" rx="22" fill="#FFFFFF"/>
+    <rect x="232" y="142" width="48" height="228" rx="24" fill="url(#beam)"/>
+    <circle cx="256" cy="256" r="58" fill="#0A0C10" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="4"/>
+    <circle cx="256" cy="256" r="38" fill="url(#lens)"/>
+    <circle cx="243" cy="242" r="10" fill="#FFFFFF" fill-opacity="0.78"/>
+  </g>
+
+  <path d="M370 106C370 129.196 388.804 148 412 148C388.804 148 370 166.804 370 190C370 166.804 351.196 148 328 148C351.196 148 370 129.196 370 106Z" fill="#B9FFE9"/>
+  <circle cx="143" cy="300" r="7" fill="#8FE8D2" fill-opacity="0.9"/>
+</svg>

@@ -1,9 +1,9 @@
 /**
- * JOVI PWA Service Worker
+ * INSIGHT PWA Service Worker
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "jovi-pwa-v1";
+const CACHE_NAME = "insight-pwa-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/library",

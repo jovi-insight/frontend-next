@@ -220,7 +220,7 @@ function PlayerConteudo({ id }: { id: string }) {
     if (!texto) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: item?.name || "Vídeo JOVI", text: texto });
+        await navigator.share({ title: item?.name || "Vídeo INSIGHT", text: texto });
         return;
       } catch {
         return;
@@ -306,7 +306,7 @@ function PlayerConteudo({ id }: { id: string }) {
                   key={urlLegenda}
                   kind="captions"
                   srcLang="pt-BR"
-                  label="Português (transcrição JOVI)"
+                  label="Português (transcrição INSIGHT)"
                   src={urlLegenda}
                   default={legendaLigada}
                 />
@@ -668,4 +668,3 @@ export default function PlayerPage({ params }: PageProps<"/player/[id]">) {
     </GuardaSessao>
   );
 }
-

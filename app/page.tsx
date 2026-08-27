@@ -75,6 +75,10 @@ function CameraConteudo() {
   const gravador = useGravador();
   const libras = useLibras(camera.videoRef, modo === "LIBRAS");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const zoomMinimo = Math.max(1, camera.capacidadesZoom?.min ?? 1);
+  const zoomMaximo = Math.max(zoomMinimo, Math.min(5, camera.capacidadesZoom?.max ?? 5));
+  const zoomPasso = Math.max(0.1, camera.capacidadesZoom?.step ?? 0.1);
+  const zoomDigital = camera.zoomNativo ? 1 : camera.zoom;
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
@@ -108,8 +112,12 @@ function CameraConteudo() {
 
   const filtroAtual = ajustes.realce ? FILTRO_REALCE : "";
 
-  // Suporte a gesto de pinça (pinch-to-zoom) no celular
-  const toquePincaRef = useRef<{ dist: number; zoomInicial: number } | null>(null);
+  // Suporte a gesto de pinça e arraste vertical (frente e trás) para zoom
+  const toqueViewfinderRef = useRef<{
+    inicioY: number;
+    distPinca: number;
+    zoomInicial: number;
+  } | null>(null);
 
   function aoTocarInicio(e: React.TouchEvent) {
     if (e.touches.length === 2) {
@@ -117,32 +125,84 @@ function CameraConteudo() {
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY,
       );
-      toquePincaRef.current = { dist, zoomInicial: camera.zoom };
+      toqueViewfinderRef.current = {
+        inicioY: 0,
+        distPinca: dist,
+        zoomInicial: camera.zoom,
+      };
+    } else if (e.touches.length === 1) {
+      toqueViewfinderRef.current = {
+        inicioY: e.touches[0].clientY,
+        distPinca: 0,
+        zoomInicial: camera.zoom,
+      };
     }
   }
 
   function aoTocarMover(e: React.TouchEvent) {
-    if (e.touches.length === 2 && toquePincaRef.current) {
+    if (!toqueViewfinderRef.current) return;
+
+    if (e.touches.length === 2 && toqueViewfinderRef.current.distPinca > 0) {
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY,
       );
-      if (toquePincaRef.current.dist > 0) {
-        const fator = dist / toquePincaRef.current.dist;
-        const novoZoom = Math.min(5, Math.max(1, toquePincaRef.current.zoomInicial * fator));
+      if (dist > 0) {
+        const fator = dist / toqueViewfinderRef.current.distPinca;
+        const novoZoom = Math.min(
+          zoomMaximo,
+          Math.max(zoomMinimo, toqueViewfinderRef.current.zoomInicial * fator),
+        );
+        camera.ajustarZoom(Number(novoZoom.toFixed(1)));
+      }
+    } else if (e.touches.length === 1 && toqueViewfinderRef.current.inicioY > 0) {
+      const deltaY = toqueViewfinderRef.current.inicioY - e.touches[0].clientY;
+      if (Math.abs(deltaY) > 8) {
+        const deltaZoom = (deltaY / 180) * (zoomMaximo - zoomMinimo);
+        const novoZoom = Math.min(
+          zoomMaximo,
+          Math.max(zoomMinimo, toqueViewfinderRef.current.zoomInicial + deltaZoom),
+        );
         camera.ajustarZoom(Number(novoZoom.toFixed(1)));
       }
     }
   }
 
   function aoTocarFim() {
-    toquePincaRef.current = null;
+    toqueViewfinderRef.current = null;
+  }
+
+  // Na prévia, arrastar horizontalmente troca de página. Os botões continuam
+  // disponíveis para teclado e para quem prefere um alvo explícito.
+  const arrastePreviewRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+
+  function aoIniciarArrastePreview(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
+    arrastePreviewRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+
+  function aoFinalizarArrastePreview(e: React.PointerEvent<HTMLDivElement>) {
+    const inicio = arrastePreviewRef.current;
+    arrastePreviewRef.current = null;
+    if (!inicio || inicio.pointerId !== e.pointerId) return;
+
+    const deltaX = e.clientX - inicio.x;
+    const deltaY = e.clientY - inicio.y;
+    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+
+    setPreviewPaginaIndex((indice) => {
+      if (indice === null) return indice;
+      return deltaX < 0
+        ? Math.min(indice + 1, paginas.length - 1)
+        : Math.max(indice - 1, 0);
+    });
   }
 
   /** Captura de fato: já passou o temporizador e o flash. */
   const disparar = useCallback(async () => {
-    const imagem = camera.capturar(0, 0.92, filtroAtual, camera.zoom);
-    const miniatura = camera.capturar(320, 0.6, filtroAtual, camera.zoom);
+    const imagem = camera.capturar(0, 0.92, filtroAtual, zoomDigital);
+    const miniatura = camera.capturar(320, 0.6, filtroAtual, zoomDigital);
     if (!imagem) {
       avisar("A câmera ainda não está pronta.", "info");
       return;
@@ -159,7 +219,7 @@ function CameraConteudo() {
     // Lendo durante a captura, quatro fotos seguidas viravam quatro chamadas
     // de IA simultâneas e o Gemini derrubava as excedentes com 502.
     setPaginas((antes) => [...antes, criarPagina(imagem, miniatura ?? imagem)]);
-  }, [camera, filtroAtual, modo]);
+  }, [camera, filtroAtual, modo, zoomDigital]);
 
   /** Flash: lanterna física e clarão de tela sincronizados. */
   const comFlash = useCallback(
@@ -493,7 +553,7 @@ function CameraConteudo() {
           className="camera-video"
           style={{
             filter: filtroAtual || undefined,
-            transform: camera.zoom > 1 ? `scale(${camera.zoom})` : undefined,
+            transform: zoomDigital > 1 ? `scale(${zoomDigital})` : undefined,
             transformOrigin: "center center",
             transition: "transform 0.1s ease-out",
           }}
@@ -661,6 +721,9 @@ function CameraConteudo() {
           role="dialog"
           aria-modal="true"
           aria-label="Prévia da foto capturada"
+          onPointerDown={aoIniciarArrastePreview}
+          onPointerUp={aoFinalizarArrastePreview}
+          onPointerCancel={() => { arrastePreviewRef.current = null; }}
         >
           <div className="modal-preview-header">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -670,7 +733,7 @@ function CameraConteudo() {
               </strong>
             </div>
 
-            <div style={{ display: "flex", gap: 12 }}>
+            <div className="modal-preview-actions">
               <button
                 type="button"
                 className="chip chip-perigo"
@@ -735,9 +798,15 @@ function CameraConteudo() {
                 <span className="material-symbols-outlined">chevron_right</span>
               </button>
             )}
+
+            {paginas.length > 1 && (
+              <span className="modal-preview-swipe-hint" aria-hidden="true">
+                Arraste para ver a página anterior ou a próxima
+              </span>
+            )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div className="modal-preview-footer">
             <button
               type="button"
               className="chip"
@@ -767,128 +836,159 @@ function CameraConteudo() {
         </div>
       )}
 
-      <div className="camera-mode-selector">
-        {MODOS.map((m) => (
-          <button
-            key={m}
-            type="button"
-            className={`mode-btn ${modo === m ? "mode-active" : "mode-inactive"}`}
-            aria-pressed={modo === m}
-            disabled={ocupadoComGravacao && m !== modo}
-            onClick={() => {
-              if (
-                paginas.length > 0 &&
-                m !== modo &&
-                !confirm(`Descartar as ${paginas.length} páginas capturadas?`)
-              ) {
-                return;
-              }
-              if (m !== modo) setPaginas([]);
-              setModo(m);
-              setGaveta(null);
-            }}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
+      {/* Deck inferior com layout flexbox fluido que não sobrepõe em nenhuma tela */}
+      <div className="camera-bottom-deck">
+        {/* Régua de Zoom com Arraste Tátil e Pílulas Rápidas */}
+        {camera.pronta && modo !== "LIBRAS" && (
+          <div className="camera-zoom-bar" role="group" aria-label="Controle de zoom">
+            <div className="camera-zoom-pills-row">
+              {[1, 2, 3, 5].map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  className={`zoom-pill-btn${Math.abs(camera.zoom - z) < 0.25 ? " active" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void camera.ajustarZoom(z);
+                  }}
+                  aria-label={`Zoom ${z} vezes`}
+                >
+                  {z}×
+                </button>
+              ))}
+            </div>
 
-      {/* Pílulas rápidas de Zoom (1x / 2x / 3x / 5x) */}
-      {camera.pronta && (
-        <div className="camera-zoom-pills" role="toolbar" aria-label="Controle de Zoom">
-          {[1, 2, 3, 5].map((z) => (
+            <div className="camera-zoom-slider-row">
+              <span className="material-symbols-outlined zoom-icon" aria-hidden="true">
+                remove
+              </span>
+              <input
+                type="range"
+                min={zoomMinimo}
+                max={zoomMaximo}
+                step={0.1}
+                value={camera.zoom}
+                onChange={(e) => void camera.ajustarZoom(Number(e.target.value))}
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label="Arraste para ajustar o zoom"
+                className="camera-zoom-range"
+                style={{
+                  background: `linear-gradient(to right, #38bdf8 ${
+                    ((camera.zoom - zoomMinimo) / Math.max(zoomMaximo - zoomMinimo, 0.1)) * 100
+                  }%, rgba(255, 255, 255, 0.2) 0)`,
+                }}
+              />
+              <span className="material-symbols-outlined zoom-icon" aria-hidden="true">
+                add
+              </span>
+              <span className="camera-zoom-live-badge">{camera.zoom.toFixed(1)}×</span>
+            </div>
+          </div>
+        )}
+
+        <div className="camera-mode-selector">
+          {MODOS.map((m) => (
             <button
-              key={z}
+              key={m}
               type="button"
-              className={`zoom-pill${Math.round(camera.zoom) === z ? " active" : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                camera.ajustarZoom(z);
+              className={`mode-btn ${modo === m ? "mode-active" : "mode-inactive"}`}
+              aria-pressed={modo === m}
+              disabled={ocupadoComGravacao && m !== modo}
+              onClick={() => {
+                if (
+                  paginas.length > 0 &&
+                  m !== modo &&
+                  !confirm(`Descartar as ${paginas.length} páginas capturadas?`)
+                ) {
+                  return;
+                }
+                if (m !== modo) setPaginas([]);
+                setModo(m);
+                setGaveta(null);
               }}
-              aria-label={`Zoom ${z} vezes`}
             >
-              {z}x
+              {m}
             </button>
           ))}
         </div>
-      )}
 
-      <div className="camera-shutter-control">
-        <Link href="/library" className="thumbnail-preview" aria-label="Abrir biblioteca">
-          {ultimaFoto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ultimaFoto} alt="" />
-          ) : (
-            <span className="material-symbols-outlined" style={{ opacity: 0.3, color: "#fff" }}>
-              photo_library
-            </span>
-          )}
-        </Link>
-
-        <button
-          type="button"
-          className="shutter-button"
-          onClick={aoDisparar}
-          disabled={!!ocupado || contagem > 0 || (!camera.pronta && modo !== "AULA")}
-          aria-label={
-            modo === "AULA"
-              ? aula.gravando
-                ? "Encerrar aula"
-                : "Iniciar aula"
-              : modo === "VÍDEO"
-                ? gravandoVideo
-                  ? "Parar gravação"
-                  : "Gravar vídeo"
-                : modo === "LIBRAS"
-                  ? "Falar a frase montada"
-                  : "Capturar"
-          }
-        >
-          <div className="shutter-outer">
-            <div className={`shutter-inner${ocupadoComGravacao ? " recording" : ""}`}>
-              <span className="material-symbols-outlined" style={{ fontSize: 32 }}>
-                {modo === "AULA"
-                  ? aula.gravando
-                    ? "stop"
-                    : "mic"
-                  : modo === "VÍDEO"
-                    ? gravandoVideo
-                      ? "stop"
-                      : "videocam"
-                    : modo === "LIBRAS"
-                      ? "campaign"
-                      : "photo_camera"}
+        <div className="camera-shutter-control">
+          <Link href="/library" className="thumbnail-preview" aria-label="Abrir biblioteca">
+            {ultimaFoto ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ultimaFoto} alt="" />
+            ) : (
+              <span className="material-symbols-outlined" style={{ opacity: 0.3, color: "#fff" }}>
+                photo_library
               </span>
-            </div>
-          </div>
-        </button>
+            )}
+          </Link>
 
-        <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={camera.trocarLado}
+            className="shutter-button"
+            onClick={aoDisparar}
+            disabled={!!ocupado || contagem > 0 || (!camera.pronta && modo !== "AULA")}
             aria-label={
-              camera.lado === "environment" ? "Usar câmera frontal" : "Usar câmera traseira"
+              modo === "AULA"
+                ? aula.gravando
+                  ? "Encerrar aula"
+                  : "Iniciar aula"
+                : modo === "VÍDEO"
+                  ? gravandoVideo
+                    ? "Parar gravação"
+                    : "Gravar vídeo"
+                  : modo === "LIBRAS"
+                    ? "Falar a frase montada"
+                    : "Capturar"
             }
-            style={{
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "none",
-              cursor: "pointer",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-            }}
           >
-            <span className="material-symbols-outlined">flip_camera_android</span>
+            <div className="shutter-outer">
+              <div className={`shutter-inner${ocupadoComGravacao ? " recording" : ""}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32 }}>
+                  {modo === "AULA"
+                    ? aula.gravando
+                      ? "stop"
+                      : "mic"
+                    : modo === "VÍDEO"
+                      ? gravandoVideo
+                        ? "stop"
+                        : "videocam"
+                      : modo === "LIBRAS"
+                        ? "campaign"
+                        : "photo_camera"}
+                </span>
+              </div>
+            </div>
           </button>
-        </div>
-      </div>
 
-      <BottomNav />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={camera.trocarLado}
+              aria-label={
+                camera.lado === "environment" ? "Usar câmera frontal" : "Usar câmera traseira"
+              }
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "none",
+                cursor: "pointer",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+              }}
+            >
+              <span className="material-symbols-outlined">flip_camera_android</span>
+            </button>
+          </div>
+        </div>
+
+        <BottomNav />
+      </div>
     </div>
   );
 }

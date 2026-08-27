@@ -137,6 +137,92 @@
 /* A estrutura e as classes vêm do jovi.css (.camera-container, .shutter-*,
    .camera-mode-selector). Só o que não existia lá entra aqui. */
 
+html:has(.camera-container),
+body:has(.camera-container) {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body:has(.camera-container) {
+  padding-bottom: 0 !important;
+}
+
+.camera-container {
+  --camera-safe-top: env(safe-area-inset-top, 0px);
+  --camera-safe-bottom: env(safe-area-inset-bottom, 0px);
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100svh;
+  isolation: isolate;
+}
+
+.camera-container .top-header {
+  height: calc(52px + var(--camera-safe-top));
+  padding: var(--camera-safe-top) max(16px, env(safe-area-inset-right, 0px)) 0
+    max(16px, env(safe-area-inset-left, 0px));
+}
+
+.camera-container .settings-drawer {
+  max-height: calc(100dvh - var(--camera-safe-bottom));
+  padding-top: calc(68px + var(--camera-safe-top));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Deck Inferior da Câmera: Flexbox unificado e fluido com proteção Safe Area */
+.camera-bottom-deck {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: max(6px, var(--camera-safe-bottom));
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.94) 0%,
+    rgba(0, 0, 0, 0.72) 45%,
+    rgba(0, 0, 0, 0.25) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 50;
+  width: 100%;
+}
+
+.camera-bottom-deck > * {
+  pointer-events: auto;
+}
+
+.camera-bottom-deck .camera-shutter-control {
+  position: static !important;
+  width: 100%;
+  padding-inline: max(20px, env(safe-area-inset-left, 0px));
+}
+
+.camera-bottom-deck .camera-mode-selector {
+  position: static !important;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.camera-bottom-deck .bottom-nav {
+  position: static !important;
+  width: min(440px, calc(100% - 24px));
+  margin-inline: auto;
+  border-radius: 100px;
+}
+
+.camera-bottom-deck .tira-paginas {
+  position: static !important;
+  margin-bottom: 4px;
+}
+
 /* Legenda da aula ao vivo, sobre a imagem. */
 .aula-legenda {
   position: absolute;
@@ -245,22 +331,132 @@
   transition: opacity 0.1s ease-out;
 }
 
-/* Pílulas de Zoom da Câmera */
-.camera-zoom-pills {
-  position: absolute;
-  bottom: 168px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Barra de Zoom Tátil com Arraste e Pílulas de Acesso Rápido */
+.camera-zoom-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 18, 30, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 24px;
+  padding: 6px 14px;
+  width: min(320px, calc(100% - 32px));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  user-select: none;
+  touch-action: none;
+}
+
+.camera-zoom-pills-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.zoom-pill-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zoom-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.zoom-pill-btn.active {
+  background: linear-gradient(135deg, #06b6d4, #6366f1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+  transform: scale(1.06);
+}
+
+.camera-zoom-slider-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 100px;
-  padding: 4px 6px;
-  z-index: 60;
+  width: 100%;
+}
+
+.camera-zoom-slider-row .zoom-icon {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.6);
+  user-select: none;
+}
+
+.camera-zoom-range {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none;
+  cursor: pointer;
+}
+
+.camera-zoom-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.camera-zoom-range::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+
+.camera-zoom-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+  cursor: pointer;
+}
+
+.camera-zoom-live-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: #38bdf8;
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-zoom-value {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 /* Modal de Prévia de Página / Fotos do Scan */
@@ -276,6 +472,8 @@
   justify-content: space-between;
   padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
   animation: fadeIn 0.2s ease-out;
+  min-height: 100dvh;
+  touch-action: pan-y;
 }
 
 .modal-preview-header {
@@ -283,6 +481,23 @@
   align-items: center;
   justify-content: space-between;
   color: #fff;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modal-preview-actions,
+.modal-preview-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-preview-actions {
+  margin-left: auto;
+}
+
+.modal-preview-footer {
+  justify-content: space-between;
 }
 
 .modal-preview-body {
@@ -302,6 +517,24 @@
   border-radius: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.modal-preview-swipe-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 80px);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 10px;
+  text-align: center;
+  pointer-events: none;
 }
 
 .modal-preview-nav-btn {
@@ -376,33 +609,6 @@
   border-radius: 4px;
 }
 
-.zoom-pill {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.zoom-pill:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.zoom-pill.active {
-  background: var(--primary);
-  color: var(--on-primary);
-  box-shadow: 0 0 12px rgba(156, 208, 206, 0.4);
-  transform: scale(1.08);
-}
-
 .drawer-nota {
   margin: 12px 0 0;
   font-size: 11px;
@@ -450,7 +656,7 @@
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: 250px;
+  bottom: calc(210px + var(--camera-safe-bottom, 0px));
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -941,7 +1147,7 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: 244px;
+  bottom: calc(262px + var(--camera-safe-bottom, 0px));
   z-index: 30;
   display: flex;
   align-items: center;
@@ -1241,4 +1447,282 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   width: 100%;
   height: 22px;
   color: var(--primary);
+}
+
+/* ─── Instalação do PWA ─────────────────────────────────── */
+.pwa-install-card {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 10000;
+  width: calc(100% - 32px);
+  max-width: 440px;
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding: 16px 18px;
+  overflow-y: auto;
+  transform: translateX(-50%);
+  border: 1px solid rgba(143, 232, 210, 0.34);
+  border-radius: 20px;
+  background: rgba(18, 20, 25, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 24px rgba(143, 232, 210, 0.1);
+}
+
+.pwa-install-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.pwa-install-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.pwa-install-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-install-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pwa-install-header strong {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pwa-install-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: -8px -8px 0 0;
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pwa-install-close .material-symbols-outlined { font-size: 18px; }
+
+.pwa-install-copy {
+  margin: 3px 0 12px;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pwa-install-ios-guide {
+  padding: 9px 12px;
+  border: 1px solid rgba(143, 232, 210, 0.3);
+  border-radius: 10px;
+  background: rgba(143, 232, 210, 0.1);
+  color: #b9ffe9;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pwa-install-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pwa-install-primary,
+.pwa-install-secondary {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pwa-install-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.pwa-install-primary .material-symbols-outlined { font-size: 16px; }
+.pwa-install-secondary { background: rgba(255, 255, 255, 0.08); color: var(--on-surface); }
+
+/* ─── Responsividade compacta ────────────────────────────── */
+.container {
+  width: 100%;
+  padding-inline: clamp(16px, 4vw, 24px);
+}
+
+.section-title,
+.section-title h2,
+.section-header > * {
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  body:not(:has(.camera-container)) .top-header {
+    padding-inline: 16px;
+  }
+
+  .top-header h1 {
+    max-width: calc(100vw - 92px);
+  }
+
+  .section-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 18px;
+    margin-bottom: 24px;
+  }
+
+  .section-title h2 {
+    font-size: clamp(18px, 6vw, 22px);
+    overflow-wrap: anywhere;
+  }
+
+  .bottom-nav {
+    width: calc(100% - 16px);
+  }
+
+  .bottom-nav .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .bottom-nav .nav-item span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    text-overflow: ellipsis;
+  }
+
+  .camera-container .camera-shutter-control {
+    padding-inline: max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .camera-container .camera-mode-selector {
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 8px;
+  }
+
+  .camera-container .camera-mode-selector .mode-btn {
+    padding-inline: 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+
+  .settings-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .quality-summary-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .modal-preview-overlay {
+    padding-inline: 12px;
+  }
+
+  .modal-preview-header {
+    align-items: flex-start;
+  }
+
+  .modal-preview-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-preview-footer .chip {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modal-preview-img {
+    max-height: min(62vh, calc(100dvh - 250px));
+    border-radius: 12px;
+  }
+
+  .modal-preview-nav-btn.prev { left: 2px; }
+  .modal-preview-nav-btn.next { right: 2px; }
+
+  .pwa-install-card {
+    width: calc(100% - 16px);
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .pwa-install-layout { gap: 10px; }
+  .pwa-install-icon { width: 42px; height: 42px; border-radius: 10px; }
+}
+
+@media (max-width: 360px) {
+  .pwa-install-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pwa-install-primary,
+  .pwa-install-secondary {
+    width: 100%;
+  }
+
+  .modal-preview-actions { gap: 6px; }
+  .modal-preview-header .chip { padding-inline: 10px; }
+  .tira-concluir { padding-inline: 12px; letter-spacing: 0.5px; }
+}
+
+/* Celulares baixos (SE antigo, Android com barras do navegador abertas): layout compacto fluido */
+@media (max-height: 700px) {
+  .camera-bottom-deck {
+    gap: 4px;
+    padding-bottom: max(4px, var(--camera-safe-bottom));
+  }
+
+  .camera-zoom-bar {
+    padding: 4px 10px;
+    gap: 3px;
+  }
+
+  .camera-container .shutter-outer { width: 62px; height: 62px; }
+  .camera-container .shutter-inner { width: 46px; height: 46px; }
+
+  .camera-container .bottom-nav {
+    height: 52px;
+  }
+
+  .camera-container .libras-barra {
+    max-height: calc(100dvh - 260px - var(--camera-safe-top) - var(--camera-safe-bottom));
+    padding: 8px 10px;
+    overflow-y: auto;
+  }
+
+  .camera-container .libras-letra { width: 36px; height: 36px; font-size: 18px; }
+  .camera-container .libras-frase { min-height: 0; font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-preview-overlay { animation: none; }
 }

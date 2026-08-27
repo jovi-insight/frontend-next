@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -12,7 +12,7 @@ const CHAVE_DISPENSADO = "jovi_pwa_prompt_dismissed";
 export default function PwaInstallPrompt() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [exibir, setExibir] = useState(false);
-  const [isIos, setIsIos] = useState(false);
+  const isIosRef = useRef(false);
   const [guiaIos, setGuiaIos] = useState(false);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function PwaInstallPrompt() {
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
     if (isAppleMobile) {
-      setIsIos(true);
+      isIosRef.current = true;
       // No iOS exibe após 3 segundos de navegação
       const timer = setTimeout(() => setExibir(true), 3000);
       return () => clearTimeout(timer);
@@ -64,7 +64,7 @@ export default function PwaInstallPrompt() {
   }
 
   async function instalar() {
-    if (isIos) {
+    if (isIosRef.current) {
       setGuiaIos(true);
       return;
     }
@@ -82,128 +82,54 @@ export default function PwaInstallPrompt() {
 
   return (
     <aside
+      className="pwa-install-card"
       aria-label="Recomendação de Instalação do App"
-      style={{
-        position: "fixed",
-        top: "calc(16px + env(safe-area-inset-top, 0px))",
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: "calc(100% - 32px)",
-        maxWidth: 440,
-        zIndex: 10000,
-        background: "rgba(24, 24, 28, 0.94)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        border: "1px solid rgba(156, 208, 206, 0.35)",
-        borderRadius: 20,
-        padding: "16px 18px",
-        boxShadow: "0 16px 40px rgba(0,0,0,0.65), 0 0 24px rgba(94, 92, 230, 0.2)",
-      }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+      <div className="pwa-install-layout">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/icons/icon-192x192.png"
-          alt="Ícone do JOVI"
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-            flexShrink: 0,
-          }}
+          alt="Ícone do INSIGHT"
+          className="pwa-install-icon"
         />
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <strong style={{ fontSize: 14, color: "#fff", fontWeight: 700 }}>
-              Instale o App JOVI
-            </strong>
+        <div className="pwa-install-content">
+          <div className="pwa-install-header">
+            <strong>Instale o App INSIGHT</strong>
             <button
               type="button"
               onClick={dispensar}
               aria-label="Fechar"
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--on-surface-variant)",
-                cursor: "pointer",
-                padding: 4,
-                display: "flex",
-                alignItems: "center",
-              }}
+              className="pwa-install-close"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                close
-              </span>
+              <span className="material-symbols-outlined">close</span>
             </button>
           </div>
 
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--on-surface-variant)",
-              marginTop: 3,
-              marginBottom: 12,
-              lineHeight: 1.4,
-            }}
-          >
+          <p className="pwa-install-copy">
             Acesse a câmera, resumos e cadernos com maior velocidade e em tela cheia.
           </p>
 
           {guiaIos ? (
-            <div
-              style={{
-                background: "rgba(94, 92, 230, 0.15)",
-                border: "1px solid rgba(156, 208, 206, 0.3)",
-                borderRadius: 10,
-                padding: "8px 12px",
-                fontSize: 11,
-                lineHeight: 1.5,
-                color: "#9cd0ce",
-              }}
-            >
+            <div className="pwa-install-ios-guide">
               Toque no ícone de <strong>Compartilhar</strong> no Safari e selecione{" "}
               <strong>&quot;Adicionar à Tela de Início&quot;</strong>.
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="pwa-install-actions">
               <button
                 type="button"
                 onClick={instalar}
-                style={{
-                  background: "var(--primary)",
-                  color: "var(--on-primary)",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "8px 16px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
+                className="pwa-install-primary"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                  download
-                </span>
+                <span className="material-symbols-outlined">download</span>
                 Instalar agora
               </button>
 
               <button
                 type="button"
                 onClick={dispensar}
-                style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  color: "var(--on-surface)",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
+                className="pwa-install-secondary"
               >
                 Agora não
               </button>

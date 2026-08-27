@@ -206,11 +206,11 @@ function SettingsConteudo() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icons/icon-192x192.png"
-              alt="Ícone do JOVI"
+              alt="Ícone do INSIGHT"
               style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0 }}
             />
             <div>
-              <p style={{ fontSize: 14, fontWeight: 700 }}>Instalar JOVI</p>
+              <p style={{ fontSize: 14, fontWeight: 700 }}>Instalar INSIGHT</p>
               <p style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>
                 Funciona como app nativo na tela inicial, em tela cheia e com cache rápido.
               </p>
@@ -249,7 +249,7 @@ function SettingsConteudo() {
               letterSpacing: 2,
             }}
           >
-            JOVI | Edge-to-Cloud Intelligence
+            INSIGHT | Capture, estude e evolua
           </p>
           <p style={{ fontFamily: "monospace", fontSize: 8 }}>Build V.1.0.4-academic</p>
         </section>
