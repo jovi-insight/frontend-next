@@ -82,7 +82,9 @@ function TreinamentoLibrasConteudo() {
     carregando: rastreamentoCarregando,
     erro: rastreamentoErro,
     tentarNovamente: tentarRastreamentoNovamente,
-  } = useLibras(videoRef, true, false);
+    adicionarAmostraCalibracao,
+    finalizarCalibracao,
+  } = useLibras(videoRef, true, false, true);
   const [letra, setLetra] = useState("F");
   const [dataset, setDataset] = useState<ResumoDataset | null>(null);
   const [modelo, setModelo] = useState<Modelo | null>(null);
@@ -217,7 +219,22 @@ function TreinamentoLibrasConteudo() {
 
     if (execucaoRef.current !== minhaExecucao) return;
     setFase("enviando");
-    setMensagemColeta(`Salvando ${ALVO_AMOSTRAS} amostras da letra ${letra}…`);
+    setMensagemColeta(`Calibrando o aparelho e salvando ${ALVO_AMOSTRAS} amostras da letra ${letra}…`);
+
+    let calibracaoLocalSalva = false;
+    try {
+      let totalLocal = 0;
+      for (const landmarks of amostras) {
+        totalLocal = adicionarAmostraCalibracao(letra, landmarks);
+      }
+      if (totalLocal < MINIMO_POR_LETRA) {
+        throw new Error("A mão não gerou pontos suficientes para a calibração local.");
+      }
+      finalizarCalibracao();
+      calibracaoLocalSalva = true;
+    } catch (erroCalibracao) {
+      console.warn("Não foi possível salvar a calibração local de Libras:", erroCalibracao);
+    }
 
     try {
       const resposta = await enviarAmostrasLetra(
@@ -229,13 +246,19 @@ function TreinamentoLibrasConteudo() {
       if (execucaoRef.current !== minhaExecucao) return;
       setDataset(resposta.dataset);
       setMensagemColeta(
-        `${resposta.accepted} amostras da letra ${letra} foram salvas. Você pode repetir essa letra ou escolher outra.`,
+        calibracaoLocalSalva
+          ? `${resposta.accepted} amostras da letra ${letra} foram salvas no aparelho e no servidor. Você pode repetir essa letra ou escolher outra.`
+          : `${resposta.accepted} amostras da letra ${letra} foram salvas no servidor. Você pode repetir essa letra ou escolher outra.`,
       );
       avisar(`Letra ${letra} adicionada ao treinamento.`, "sucesso");
     } catch (erro) {
       if (execucaoRef.current !== minhaExecucao) return;
       const mensagem = (erro as Error).message;
-      setMensagemColeta(`Não foi possível salvar: ${mensagem}`);
+      setMensagemColeta(
+        calibracaoLocalSalva
+          ? `Calibração salva neste aparelho, mas o servidor não recebeu as amostras: ${mensagem}`
+          : `Não foi possível salvar: ${mensagem}`,
+      );
       avisar(mensagem, "erro");
     } finally {
       if (execucaoRef.current === minhaExecucao) setFase("parado");
@@ -294,7 +317,8 @@ function TreinamentoLibrasConteudo() {
               sua imagem — e usa as amostras para treinar o reconhecimento.
             </p>
             <p className="treino-libras-repetir">
-              Você pode treinar a mesma letra mais de uma vez. Cada rodada adiciona 45 novas amostras.
+              Você pode treinar a mesma letra mais de uma vez. Cada rodada calibra este aparelho e
+              adiciona 45 novas amostras ao servidor.
             </p>
           </div>
         </section>
