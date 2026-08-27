@@ -1,4 +1,5 @@
 import { BASE_URL } from "./api";
+import type { StatusAtualizacaoAutomatica } from "./libras-auto-training";
 
 /**
  * Módulo de Libras e Transcrição integrado ao backend da JOVI.
@@ -173,7 +174,13 @@ export async function enviarAmostrasLetra(
   amostrasLandmarks: { x: number; y: number; z?: number }[][],
   userId = "web-user",
   sessionId = `sessao-${Date.now()}`,
-): Promise<{ accepted: number; duplicates: number; total: number; dataset: ResumoDataset }> {
+): Promise<{
+  accepted: number;
+  duplicates: number;
+  total: number;
+  dataset: ResumoDataset;
+  auto_training?: StatusAtualizacaoAutomatica;
+}> {
   const samples = amostrasLandmarks.map((landmarks, index) => ({
     sample_id: `${sessionId}-${index}`,
     user_id: userId,
