@@ -207,20 +207,46 @@ body:has(.camera-container) {
 
 .camera-bottom-deck .camera-mode-selector {
   position: static !important;
+  left: auto;
+  bottom: auto;
+  transform: none !important;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   width: 100%;
   margin-bottom: 2px;
+  padding-inline: 6px;
+  overflow: visible;
 }
 
 .camera-bottom-deck .bottom-nav {
   position: static !important;
+  left: auto;
+  bottom: auto;
+  transform: none !important;
   width: min(440px, calc(100% - 24px));
   margin-inline: auto;
   border-radius: 100px;
 }
 
+.camera-bottom-deck .camera-mode-selector .mode-btn {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 2px;
+}
+
 .camera-bottom-deck .tira-paginas {
   position: static !important;
   margin-bottom: 4px;
+}
+
+/* A guia de enquadramento termina antes do deck. A altura cresce quando a
+   régua de zoom aparece, sem depender de pixels absolutos de um modelo só. */
+.camera-container .viewfinder-overlay {
+  bottom: calc(170px + var(--camera-safe-bottom));
+}
+
+.camera-container:has(.camera-zoom-bar) .viewfinder-overlay {
+  bottom: calc(230px + var(--camera-safe-bottom));
 }
 
 /* Legenda da aula ao vivo, sobre a imagem. */
@@ -1147,7 +1173,7 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: calc(262px + var(--camera-safe-bottom, 0px));
+  bottom: calc(300px + var(--camera-safe-bottom, 0px));
   z-index: 30;
   display: flex;
   align-items: center;

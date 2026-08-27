@@ -866,7 +866,7 @@ function CameraConteudo() {
                 type="range"
                 min={zoomMinimo}
                 max={zoomMaximo}
-                step={0.1}
+                step={zoomPasso}
                 value={camera.zoom}
                 onChange={(e) => void camera.ajustarZoom(Number(e.target.value))}
                 onPointerDown={(e) => e.stopPropagation()}
