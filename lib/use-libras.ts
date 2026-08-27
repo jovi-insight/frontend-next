@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { criarConfirmadorLibras } from "./libras-confirmation";
 import { inferirLandmarks, statusModelo } from "./libras-ml";
 
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
@@ -154,8 +155,7 @@ export function useLibras(
   const recRef = useRef<Reconhecedor | null>(null);
   const loopRef = useRef<number | null>(null);
   const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ultimaLetraRef = useRef<string | null>(null);
-  const liberadoRef = useRef(true);
+  const confirmadorRef = useRef(criarConfirmadorLibras());
   const quadroRef = useRef<QuadroLandmarks | null>(null);
   const modeloBackendAtivoRef = useRef(false);
   const predicaoBackendRef = useRef<PredicaoBackendEstavel | null>(null);
@@ -206,12 +206,8 @@ export function useLibras(
     }
   }, [videoRef]);
 
-  /** Uma letra confirmada só entra de novo depois que a mão sai da pose. */
+  /** O filtro de confirmação decide quando a leitura pode chegar à frase. */
   const registrarLetra = useCallback((nova: string) => {
-    if (nova === ultimaLetraRef.current && !liberadoRef.current) return;
-    ultimaLetraRef.current = nova;
-    liberadoRef.current = false;
-
     setSoletrando((atual) => atual + nova);
     if (pausaRef.current) clearTimeout(pausaRef.current);
     pausaRef.current = setTimeout(() => {
@@ -225,6 +221,7 @@ export function useLibras(
   useEffect(() => {
     if (!ativo) return;
     let vivo = true;
+    const confirmador = confirmadorRef.current;
 
     (async () => {
       setCarregando(true);
@@ -291,9 +288,13 @@ export function useLibras(
             rec?.resetTracking();
             bufferBackendRef.current = [];
             predicaoBackendRef.current = null;
-            setLetra(null);
+            const confirmacao = confirmador.processar(
+              { status: "sem-mao" },
+              performance.now(),
+            );
+            setLetra(confirmacao.visivel);
+            setConfianca(confirmacao.confianca);
             setEmMovimento(false);
-            liberadoRef.current = true; // mão saiu: libera repetir a letra
             return;
           }
 
@@ -362,18 +363,10 @@ export function useLibras(
                 }
               : local;
           setEmMovimento(Boolean(saida.motion?.moving));
-
-          if (saida.status === "confirmado" && saida.letter) {
-            setLetra(saida.letter);
-            setConfianca(saida.confidence ?? 0);
-            registrarLetra(saida.letter);
-          } else if (saida.status === "estabilizando" && saida.letter) {
-            setLetra(saida.letter);
-            setConfianca(saida.confidence ?? 0);
-          } else if (saida.status === "incerto" || saida.status === "sem-mao") {
-            setLetra(null);
-            liberadoRef.current = true;
-          }
+          const confirmacao = confirmador.processar(saida, agora);
+          setLetra(confirmacao.visivel);
+          setConfianca(confirmacao.confianca);
+          if (confirmacao.registrar) registrarLetra(confirmacao.registrar);
         });
 
         handsRef.current = hands;
@@ -414,6 +407,7 @@ export function useLibras(
       modeloBackendAtivoRef.current = false;
       predicaoBackendRef.current = null;
       bufferBackendRef.current = [];
+      confirmador.resetar();
     };
   }, [ativo, calibrar, desenhar, reconhecer, registrarLetra, tentativa, videoRef]);
 
@@ -431,7 +425,6 @@ export function useLibras(
     setPalavras([]);
     setSoletrando("");
     setLetra(null);
-    ultimaLetraRef.current = null;
   }, []);
 
   const falar = useCallback(() => {
