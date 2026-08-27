@@ -34,6 +34,8 @@ type PredicaoBackendEstavel = {
 type Reconhecedor = {
   process: (landmarks: Landmark[], agora: number) => Resultado;
   resetTracking: () => void;
+  addCalibrationSample: (letra: string, landmarks: Landmark[]) => number;
+  finishCalibration: () => void;
 };
 
 type Hands = {
@@ -135,6 +137,7 @@ export function useLibras(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   ativo: boolean,
   reconhecer = true,
+  calibrar = false,
 ) {
   const [letra, setLetra] = useState<string | null>(null);
   const [confianca, setConfianca] = useState(0);
@@ -237,7 +240,7 @@ export function useLibras(
           () => typeof window.Hands === "function",
           "Não foi possível carregar o rastreamento da mão. Verifique sua conexão e tente novamente.",
         );
-        if (reconhecer) {
+        if (reconhecer || calibrar) {
           await carregarScriptComRetry(
             "/vendor/libras-recognizer.js",
             () => typeof window.LibrasAlphabetRecognizer === "function",
@@ -246,7 +249,7 @@ export function useLibras(
         }
         if (!vivo) return;
 
-        if (!window.Hands || (reconhecer && !window.LibrasAlphabetRecognizer)) {
+        if (!window.Hands || ((reconhecer || calibrar) && !window.LibrasAlphabetRecognizer)) {
           throw new Error("Rastreamento de mão indisponível.");
         }
 
@@ -258,11 +261,11 @@ export function useLibras(
           minTrackingConfidence: 0.75,
         });
 
-        const rec = reconhecer && window.LibrasAlphabetRecognizer
+        const rec = (reconhecer || calibrar) && window.LibrasAlphabetRecognizer
           ? new window.LibrasAlphabetRecognizer()
           : null;
         recRef.current = rec;
-        if (rec) {
+        if (reconhecer && rec) {
           void statusModelo()
             .then((modelo) => {
               if (vivo) modeloBackendAtivoRef.current = modelo.ready;
@@ -296,7 +299,7 @@ export function useLibras(
 
           // A tela de treinamento precisa apenas dos landmarks crus. Evitar a
           // classificação aqui reduz trabalho e re-renderizações no celular.
-          if (!rec) return;
+          if (!reconhecer || !rec) return;
 
           const agora = performance.now();
 
@@ -412,7 +415,7 @@ export function useLibras(
       predicaoBackendRef.current = null;
       bufferBackendRef.current = [];
     };
-  }, [ativo, desenhar, reconhecer, registrarLetra, tentativa, videoRef]);
+  }, [ativo, calibrar, desenhar, reconhecer, registrarLetra, tentativa, videoRef]);
 
   const frase = [...palavras, soletrando].filter(Boolean).join(" ");
 
@@ -453,6 +456,22 @@ export function useLibras(
     setTentativa((atual) => atual + 1);
   }, []);
 
+  const adicionarAmostraCalibracao = useCallback((letraAlvo: string, landmarks: Landmark[]) => {
+    const reconhecedor = recRef.current;
+    if (!reconhecedor) {
+      throw new Error("A calibração local de Libras ainda não está pronta.");
+    }
+    return reconhecedor.addCalibrationSample(letraAlvo, landmarks);
+  }, []);
+
+  const finalizarCalibracao = useCallback(() => {
+    const reconhecedor = recRef.current;
+    if (!reconhecedor) {
+      throw new Error("A calibração local de Libras ainda não está pronta.");
+    }
+    reconhecedor.finishCalibration();
+  }, []);
+
   return {
     canvasRef,
     maoDetectada,
@@ -465,6 +484,8 @@ export function useLibras(
     carregando,
     erro,
     tentarNovamente,
+    adicionarAmostraCalibracao,
+    finalizarCalibracao,
     apagarUltima,
     limpar,
     falar,
