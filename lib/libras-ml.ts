@@ -98,10 +98,130 @@ export async function statusModelo(): Promise<{
   ready: boolean;
   model_version: string | null;
   classes: string[];
+  trained_at?: string;
+  metrics?: {
+    validation_accuracy?: number;
+    validation_loss?: number;
+    best_epoch?: number;
+    training_samples?: number;
+  };
   message?: string;
 }> {
   const resposta = await fetch(`${baseUrlLibras()}/v1/model`);
   if (!resposta.ok) throw new Error("Falha ao consultar modelo de Libras");
   return await resposta.json();
 }
+
+export type ResumoDataset = {
+  total_samples: number;
+  users: number;
+  sessions: number;
+  per_letter: Record<string, number>;
+};
+
+/** GET /v1/dataset — resumo do dataset de amostras coletadas */
+export async function obterResumoDataset(): Promise<ResumoDataset> {
+  const resposta = await fetch(`${baseUrlLibras()}/v1/dataset`);
+  if (!resposta.ok) throw new Error("Falha ao consultar dataset de Libras");
+  return await resposta.json();
+}
+
+/** POST /v1/samples/batch — salva amostras de landmarks para uma letra */
+export async function enviarAmostrasLetra(
+  letra: string,
+  amostrasLandmarks: { x: number; y: number; z?: number }[][],
+  userId = "web-user",
+  sessionId = `sessao-${Date.now()}`,
+): Promise<{ accepted: number; duplicates: number; total: number; dataset: ResumoDataset }> {
+  const samples = amostrasLandmarks.map((landmarks, index) => ({
+    sample_id: `${sessionId}-${index}`,
+    user_id: userId,
+    session_id: sessionId,
+    letter: letra.toUpperCase(),
+    landmarks: landmarks.map((p) => ({
+      x: Number(p.x),
+      y: Number(p.y),
+      z: typeof p.z === "number" && Number.isFinite(p.z) ? Number(p.z) : 0,
+    })),
+  }));
+
+  const cabecalhos: HeadersInit = { "Content-Type": "application/json" };
+  const chave = apiKeyLibras();
+  if (chave) cabecalhos["X-API-Key"] = chave;
+
+  const resposta = await fetch(`${baseUrlLibras()}/v1/samples/batch`, {
+    method: "POST",
+    headers: cabecalhos,
+    body: JSON.stringify({ samples }),
+  });
+  if (!resposta.ok) {
+    const err = await resposta.json().catch(() => ({}));
+    throw new Error(err.detail || "Falha ao enviar amostras para o backend");
+  }
+  return await resposta.json();
+}
+
+export type StatusJobTreino = {
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  progress: number;
+  epoch: number;
+  epochs: number;
+  classes: string[];
+  validation_accuracy?: number;
+  validation_loss?: number;
+  result?: Record<string, unknown>;
+  error?: string;
+};
+
+/** POST /v1/train — inicia o treinamento neural no backend */
+export async function iniciarTreinoModelo(
+  epochs = 160,
+  minimoAmostrasPorClasse = 20,
+  solicitadoPor = "web-user",
+): Promise<StatusJobTreino> {
+  const cabecalhos: HeadersInit = { "Content-Type": "application/json" };
+  const chave = apiKeyLibras();
+  if (chave) cabecalhos["X-API-Key"] = chave;
+
+  const resposta = await fetch(`${baseUrlLibras()}/v1/train`, {
+    method: "POST",
+    headers: cabecalhos,
+    body: JSON.stringify({
+      epochs,
+      minimum_samples_per_class: minimoAmostrasPorClasse,
+      requested_by: solicitadoPor,
+    }),
+  });
+
+  const payload = await resposta.json().catch(() => ({}));
+  if (!resposta.ok && resposta.status !== 409) {
+    throw new Error(payload.detail || `Erro ao iniciar treino (HTTP ${resposta.status})`);
+  }
+  return payload.job || payload;
+}
+
+/** GET /v1/train/{jobId} — consulta o status do job de treino */
+export async function consultarJobTreino(jobId: string): Promise<StatusJobTreino> {
+  const resposta = await fetch(`${baseUrlLibras()}/v1/train/${encodeURIComponent(jobId)}`);
+  if (!resposta.ok) throw new Error("Falha ao consultar treinamento");
+  return await resposta.json();
+}
+
+/** Acompanha o treinamento até a conclusão (retorna o job finalizado) */
+export async function aguardarTreino(
+  jobId: string,
+  aoProgredir?: (status: StatusJobTreino) => void,
+  tempoMaximoMs = 180000,
+): Promise<StatusJobTreino> {
+  const inicio = Date.now();
+  while (Date.now() - inicio < tempoMaximoMs) {
+    const job = await consultarJobTreino(jobId);
+    if (aoProgredir) aoProgredir(job);
+    if (job.status === "completed" || job.status === "failed") return job;
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  throw new Error("O treinamento demorou mais do que o esperado. Consulte o backend.");
+}
+
 
