@@ -15,7 +15,7 @@
     const STATIC_LETTERS = [
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
         'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-        'T', 'U', 'V', 'W', 'Y'
+        'T', 'U', 'V', 'W'
     ];
     const DYNAMIC_LETTERS = ['Ç', 'J', 'Z'];
     const STORAGE_VERSION = 5;
@@ -467,6 +467,7 @@
                 const parsed = JSON.parse(stored);
                 if (parsed.version !== STORAGE_VERSION || typeof parsed.samples !== 'object') return {};
                 delete parsed.samples.X;
+                delete parsed.samples.Y;
                 return parsed.samples;
             } catch (error) {
                 console.warn('Não foi possível carregar a calibração de Libras:', error);
@@ -787,8 +788,6 @@
             ]);
             add('I', [0.2, 0.05, 0.05, 0.05, 1], [1 - e[0], palmUp]);
             add('L', [0.8, 1, 0.05, 0.05, 0.05], [e[0], thumbAtIndexSide, farScore(d.thumbIndex, 0.9), palmUp]);
-            add('Y', [0.8, 0.05, 0.05, 0.05, 1], [e[0], thumbAtIndexSide, farScore(d.thumbPinky, 1), palmUp]);
-
             add('K', [0.65, 1, 1, 0.05, 0.05], [closeScore(d.thumbMiddlePip, 0.62), twoApart, palmFacingCamera, palmUp]);
             add('U', [0.2, 1, 1, 0.05, 0.05], [twoTogether, 1 - crossed, palmFacingCamera, palmUp]);
             add('V', [0.42, 1, 1, 0.05, 0.05], [twoApart, 1 - crossed, farScore(d.thumbMiddlePip, 0.62), palmUp]);

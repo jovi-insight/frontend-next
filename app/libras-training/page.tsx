@@ -17,7 +17,7 @@ import {
 import { useCamera } from "@/lib/use-camera";
 import { useLibras, type Landmark } from "@/lib/use-libras";
 
-const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVWY".split("");
+const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVW".split("");
 const ALVO_AMOSTRAS = 45;
 const MINIMO_POR_LETRA = 20;
 
@@ -32,7 +32,6 @@ const DICAS: Partial<Record<string, string>> = {
   N: "Aponte indicador e médio juntos para baixo; recolha os demais.",
   P: "Aponte indicador e médio para o lado e mantenha os demais recolhidos.",
   V: "Mostre a palma e abra indicador e médio em V.",
-  Y: "Abra polegar e mínimo e recolha os três dedos centrais.",
 };
 
 type Modelo = Awaited<ReturnType<typeof statusModelo>>;

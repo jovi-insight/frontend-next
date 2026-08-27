@@ -5,7 +5,7 @@ import { inferirLandmarks, statusModelo } from "./libras-ml";
 
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
 const PAUSA_DE_PALAVRA = 2000;
-const LETRAS_BLOQUEADAS = new Set(["X"]);
+const LETRAS_BLOQUEADAS = new Set(["X", "Y"]);
 
 const VERSAO_MEDIAPIPE = "0.4.1675469240";
 const CDN_MEDIAPIPE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${VERSAO_MEDIAPIPE}`;
@@ -244,7 +244,7 @@ export function useLibras(
         );
         if (reconhecer || calibrar) {
           await carregarScriptComRetry(
-            "/vendor/libras-recognizer.js?v=remove-x-20260827",
+            "/vendor/libras-recognizer.js?v=remove-x-y-20260827",
             () => typeof window.LibrasAlphabetRecognizer === "function",
             "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
           );

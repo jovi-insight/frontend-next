@@ -8,6 +8,7 @@ import type { StatusAtualizacaoAutomatica } from "./libras-auto-training";
 const URL_PADRAO = BASE_URL;
 const DEZ_MINUTOS = 10 * 60 * 1000;
 const LIMITE_CONSULTA = 30 * 1000;
+const LETRAS_DESATIVADAS = new Set(["X", "Y"]);
 
 /** O treinamento usa sempre o mesmo backend integrado ao INSIGHT. */
 export function baseUrlLibras(): string {
@@ -137,7 +138,10 @@ export async function inferirLandmarks(
   });
   if (!resposta.ok) throw new Error("Falha na inferência neural de Libras");
   const predicao: PredicaoLibras = await resposta.json();
-  if (predicao.letter?.toUpperCase() === "X" || predicao.candidate?.toUpperCase() === "X") {
+  if (
+    (predicao.letter && LETRAS_DESATIVADAS.has(predicao.letter.toUpperCase())) ||
+    (predicao.candidate && LETRAS_DESATIVADAS.has(predicao.candidate.toUpperCase()))
+  ) {
     return {
       ...predicao,
       letter: null,
@@ -192,8 +196,8 @@ export async function enviarAmostrasLetra(
   dataset: ResumoDataset;
   auto_training?: StatusAtualizacaoAutomatica;
 }> {
-  if (letra.trim().toUpperCase() === "X") {
-    throw new Error("A letra X foi desativada neste trabalho.");
+  if (LETRAS_DESATIVADAS.has(letra.trim().toUpperCase())) {
+    throw new Error("Esta letra foi desativada neste trabalho.");
   }
   const samples = amostrasLandmarks.map((landmarks, index) => ({
     sample_id: `${sessionId}-${index}`,
