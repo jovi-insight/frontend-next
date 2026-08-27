@@ -5,13 +5,14 @@ import GuardaSessao from "@/components/GuardaSessao";
 import TopHeader from "@/components/TopHeader";
 import { avisar } from "@/lib/avisos";
 import {
-  aguardarTreino,
+  descreverAtualizacaoAutomatica,
+  type StatusAtualizacaoAutomatica,
+} from "@/lib/libras-auto-training";
+import {
   enviarAmostrasLetra,
-  iniciarTreinoModelo,
   obterResumoDataset,
   statusModelo,
   type ResumoDataset,
-  type StatusJobTreino,
 } from "@/lib/libras-ml";
 import { useCamera } from "@/lib/use-camera";
 import { useLibras, type Landmark } from "@/lib/use-libras";
@@ -94,8 +95,7 @@ function TreinamentoLibrasConteudo() {
   const [regressiva, setRegressiva] = useState(0);
   const [coletadas, setColetadas] = useState(0);
   const [mensagemColeta, setMensagemColeta] = useState(dicaDaLetra("F"));
-  const [job, setJob] = useState<StatusJobTreino | null>(null);
-  const [treinando, setTreinando] = useState(false);
+  const [autoTreino, setAutoTreino] = useState<StatusAtualizacaoAutomatica>();
 
   const execucaoRef = useRef(0);
   const frameRef = useRef<number | null>(null);
@@ -245,12 +245,14 @@ function TreinamentoLibrasConteudo() {
       );
       if (execucaoRef.current !== minhaExecucao) return;
       setDataset(resposta.dataset);
+      setAutoTreino(resposta.auto_training);
+      const atualizacao = descreverAtualizacaoAutomatica(resposta.auto_training);
       setMensagemColeta(
         calibracaoLocalSalva
-          ? `${resposta.accepted} amostras da letra ${letra} foram salvas no aparelho e no servidor. Você pode repetir essa letra ou escolher outra.`
-          : `${resposta.accepted} amostras da letra ${letra} foram salvas no servidor. Você pode repetir essa letra ou escolher outra.`,
+          ? `${resposta.accepted} amostras da letra ${letra} foram salvas no aparelho e no servidor. ${atualizacao.detalhe}`
+          : `${resposta.accepted} amostras da letra ${letra} foram salvas no servidor. ${atualizacao.detalhe}`,
       );
-      avisar(`Letra ${letra} adicionada ao treinamento.`, "sucesso");
+      avisar(`Letra ${letra} salva. ${atualizacao.titulo}.`, "sucesso");
     } catch (erro) {
       if (execucaoRef.current !== minhaExecucao) return;
       const mensagem = (erro as Error).message;
@@ -265,42 +267,12 @@ function TreinamentoLibrasConteudo() {
     }
   }
 
-  async function treinarModelo() {
-    const letrasProntas = LETRAS_ESTATICAS.filter(
-      (item) => (dataset?.per_letter[item] ?? 0) >= MINIMO_POR_LETRA,
-    );
-    if (letrasProntas.length < 2 || treinando) {
-      avisar("Colete pelo menos 20 amostras de duas letras antes de treinar.", "info");
-      return;
-    }
-
-    setTreinando(true);
-    try {
-      const iniciado = await iniciarTreinoModelo(160, MINIMO_POR_LETRA, idPersistente());
-      setJob(iniciado);
-      if (!iniciado.job_id) throw new Error("O servidor não retornou o identificador do treino.");
-
-      const concluido = await aguardarTreino(iniciado.job_id, setJob);
-      setJob(concluido);
-      if (concluido.status === "failed") {
-        throw new Error(concluido.error || "O treinamento não foi concluído.");
-      }
-      await atualizarStatus();
-      avisar("Novo modelo de Libras treinado e publicado.", "sucesso");
-    } catch (erro) {
-      avisar((erro as Error).message, "erro");
-    } finally {
-      setTreinando(false);
-    }
-  }
-
   const letrasProntas = LETRAS_ESTATICAS.filter(
     (item) => (dataset?.per_letter[item] ?? 0) >= MINIMO_POR_LETRA,
   );
-  const podeTreinar = letrasProntas.length >= 2 && !treinando;
   const ocupada = fase !== "parado";
   const progressoColeta = (coletadas / ALVO_AMOSTRAS) * 100;
-  const progressoTreino = Math.max(0, Math.min(100, job?.progress ?? 0));
+  const atualizacaoAutomatica = descreverAtualizacaoAutomatica(autoTreino);
 
   return (
     <>
@@ -425,7 +397,7 @@ function TreinamentoLibrasConteudo() {
                       setMensagemColeta(dicaDaLetra(item));
                       setColetadas(0);
                     }}
-                    disabled={ocupada || treinando}
+                    disabled={ocupada}
                     aria-pressed={letra === item}
                     aria-label={`Letra ${item}, ${quantidade} amostras salvas`}
                   >
@@ -464,7 +436,7 @@ function TreinamentoLibrasConteudo() {
                 type="button"
                 className="treino-botao primario"
                 onClick={() => void iniciarColeta()}
-                disabled={treinando || Boolean(cameraErro || rastreamentoErro)}
+                disabled={Boolean(cameraErro || rastreamentoErro)}
               >
                 <span className="material-symbols-outlined" aria-hidden="true">motion_photos_on</span>
                 Capturar 45 posições
@@ -477,34 +449,21 @@ function TreinamentoLibrasConteudo() {
           <div className="treino-etapa-cabecalho">
             <span>2</span>
             <div>
-              <h3 id="titulo-treinar-rede">Treine a rede neural</h3>
+              <h3 id="titulo-treinar-rede">Atualização automática</h3>
               <p>
-                {podeTreinar
-                  ? `Pronto para treinar com: ${letrasProntas.join(", ")}.`
-                  : `Prepare mais ${Math.max(0, 2 - letrasProntas.length)} letra(s) com pelo menos ${MINIMO_POR_LETRA} amostras.`}
+                Não precisa esperar nem apertar outro botão. Cada coleta aceita entra no próximo
+                modelo automaticamente.
               </p>
             </div>
           </div>
 
-          {job && (
-            <div className="treino-job" aria-live="polite">
-              <div>
-                <span>
-                  {job.status === "completed"
-                    ? "Treinamento concluído"
-                    : job.status === "failed"
-                      ? "Falha no treinamento"
-                      : `Treinando: época ${job.epoch ?? 0}/${job.epochs ?? 160}`}
-                </span>
-                <strong>{Math.round(progressoTreino)}%</strong>
-              </div>
-              <progress max={100} value={progressoTreino} aria-label="Progresso do treinamento" />
-              {typeof job.validation_accuracy === "number" && (
-                <small>Validação atual: {Math.round(job.validation_accuracy * 100)}%</small>
-              )}
-              {job.error && <small className="erro">{job.error}</small>}
-            </div>
-          )}
+          <div className="treino-auto-status" aria-live="polite">
+            <span className="material-symbols-outlined" aria-hidden="true">autorenew</span>
+            <p>
+              <strong>{atualizacaoAutomatica.titulo}</strong>
+              {atualizacaoAutomatica.detalhe}
+            </p>
+          </div>
 
           {modelo?.ready && (
             <p className="treino-modelo-resumo">
@@ -515,17 +474,6 @@ function TreinamentoLibrasConteudo() {
             </p>
           )}
 
-          <button
-            type="button"
-            className="treino-botao primario"
-            onClick={() => void treinarModelo()}
-            disabled={!podeTreinar || ocupada}
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              {treinando ? "progress_activity" : "neurology"}
-            </span>
-            {treinando ? "Treinando modelo…" : "Treinar modelo agora"}
-          </button>
         </section>
       </main>
     </>
