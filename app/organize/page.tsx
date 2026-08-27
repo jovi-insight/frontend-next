@@ -28,6 +28,7 @@ function OrganizeConteudo() {
   const router = useRouter();
   const scanBruto = useLocalStorage("scan_data");
   const imagem = useLocalStorage("scan_image");
+  const imagensSalvasBrutas = useLocalStorage("scan_images");
 
   // Captura em lote: a câmera manda ?aula=1 e deixa o texto já concatenado em
   // `aula_pendente`; as fotos vêm por memória (janelaDeAula), porque data URLs
@@ -41,6 +42,18 @@ function OrganizeConteudo() {
       return null;
     }
   }, [aulaBruta]);
+
+  const imagensLista = useMemo<string[]>(() => {
+    try {
+      if (imagensSalvasBrutas) {
+        const parsed = JSON.parse(imagensSalvasBrutas);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return imagem ? [imagem] : [];
+  }, [imagensSalvasBrutas, imagem]);
+
+  const [indiceImagemAtiva, setIndiceImagemAtiva] = useState(0);
 
   const scan = useMemo<ScanData | null>(() => {
     try {
@@ -188,7 +201,7 @@ function OrganizeConteudo() {
       <TopHeader titulo="Organizar" voltarPara="/" />
 
       <main className="container archive-main">
-        {imagem && (
+        {imagensLista.length > 0 && (
           <section style={{ marginBottom: 24 }}>
             <div
               style={{
@@ -199,15 +212,54 @@ function OrganizeConteudo() {
                 background: "black",
                 border: "1px solid rgba(72, 72, 72, 0.3)",
                 marginBottom: 12,
+                position: "relative",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={imagem}
-                alt="Prévia da captura"
+                src={imagensLista[indiceImagemAtiva] || imagensLista[0]}
+                alt={`Página ${indiceImagemAtiva + 1} da captura`}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
+
+              {imagensLista.length > 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 8,
+                    left: 12,
+                    background: "rgba(0,0,0,0.75)",
+                    padding: "4px 8px",
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#fff",
+                  }}
+                >
+                  Página {indiceImagemAtiva + 1} de {imagensLista.length}
+                </div>
+              )}
             </div>
+
+            {/* Miniaturas de todas as fotos para alternar e ver */}
+            {imagensLista.length > 1 && (
+              <div className="organize-gallery-strip" aria-label="Fotos da aula">
+                {imagensLista.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`organize-gallery-thumb${idx === indiceImagemAtiva ? " active" : ""}`}
+                    onClick={() => setIndiceImagemAtiva(idx)}
+                    title={`Ver página ${idx + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt={`Miniatura ${idx + 1}`} />
+                    <span className="organize-gallery-num">{idx + 1}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div
               className="flex items-center gap-2"
               style={{ color: "var(--on-surface-variant)", fontSize: 11, fontWeight: 700 }}

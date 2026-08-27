@@ -68,6 +68,7 @@ function CameraConteudo() {
   const [segundosVideo, setSegundosVideo] = useState(0);
   // Páginas da aula em captura. Ficam no aparelho até o aluno concluir.
   const [paginas, setPaginas] = useState<Pagina[]>([]);
+  const [previewPaginaIndex, setPreviewPaginaIndex] = useState<number | null>(null);
 
   const camera = useCamera();
   const aula = useAula();
@@ -248,9 +249,13 @@ function CameraConteudo() {
           materia_sugerida_id: materiaSugeridaId,
         }),
       );
-      if (lidas.length > 0 && lidas[0].miniatura) {
+      if (lidas.length > 0) {
         try {
-          gravarLocalStorage("scan_image", lidas[0].miniatura);
+          if (lidas[0].miniatura) gravarLocalStorage("scan_image", lidas[0].miniatura);
+          gravarLocalStorage(
+            "scan_images",
+            JSON.stringify(lidas.map((p) => p.miniatura || p.imagem)),
+          );
         } catch (_) {}
       }
       // A escolha da matéria continua na tela de organizar; guardamos as
@@ -607,7 +612,13 @@ function CameraConteudo() {
         <div className="tira-paginas">
           <div className="tira-lista">
             {paginas.map((p, i) => (
-              <div key={p.id} className={`tira-item estado-${p.estado}`}>
+              <div
+                key={p.id}
+                className={`tira-item estado-${p.estado}`}
+                onClick={() => setPreviewPaginaIndex(i)}
+                style={{ cursor: "pointer" }}
+                title={`Ver foto da página ${i + 1}`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.miniatura} alt={`Página ${i + 1}`} />
                 <span className="tira-numero">{i + 1}</span>
@@ -620,7 +631,10 @@ function CameraConteudo() {
                 <button
                   type="button"
                   className="tira-remover"
-                  onClick={() => setPaginas((antes) => removerPagina(antes, p.id))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPaginas((antes) => removerPagina(antes, p.id));
+                  }}
                   aria-label={`Descartar página ${i + 1}`}
                 >
                   <span className="material-symbols-outlined">close</span>
@@ -637,6 +651,119 @@ function CameraConteudo() {
           >
             {ocupado ? "Lendo…" : `Concluir (${paginas.length})`}
           </button>
+        </div>
+      )}
+
+      {/* Modal de Prévia em Tela Cheia das Fotos Capturadas */}
+      {previewPaginaIndex !== null && paginas[previewPaginaIndex] && (
+        <div
+          className="modal-preview-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Prévia da foto capturada"
+        >
+          <div className="modal-preview-header">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="material-symbols-outlined text-primary">photo_library</span>
+              <strong>
+                Página {previewPaginaIndex + 1} de {paginas.length}
+              </strong>
+            </div>
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                className="chip chip-perigo"
+                onClick={() => {
+                  const paginaId = paginas[previewPaginaIndex].id;
+                  setPaginas((antes) => removerPagina(antes, paginaId));
+                  if (paginas.length <= 1) {
+                    setPreviewPaginaIndex(null);
+                  } else if (previewPaginaIndex >= paginas.length - 1) {
+                    setPreviewPaginaIndex(paginas.length - 2);
+                  }
+                }}
+                title="Descartar esta foto"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  delete
+                </span>
+                Excluir
+              </button>
+
+              <button
+                type="button"
+                className="chip"
+                onClick={() => setPreviewPaginaIndex(null)}
+                aria-label="Fechar prévia"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                  close
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="modal-preview-body">
+            {previewPaginaIndex > 0 && (
+              <button
+                type="button"
+                className="modal-preview-nav-btn prev"
+                onClick={() => setPreviewPaginaIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
+                aria-label="Página anterior"
+              >
+                <span className="material-symbols-outlined">chevron_left</span>
+              </button>
+            )}
+
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={paginas[previewPaginaIndex].imagem}
+              alt={`Foto da página ${previewPaginaIndex + 1}`}
+              className="modal-preview-img"
+            />
+
+            {previewPaginaIndex < paginas.length - 1 && (
+              <button
+                type="button"
+                className="modal-preview-nav-btn next"
+                onClick={() =>
+                  setPreviewPaginaIndex((i) => (i !== null && i < paginas.length - 1 ? i + 1 : i))
+                }
+                aria-label="Próxima página"
+              >
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <button
+              type="button"
+              className="chip"
+              onClick={() => setPreviewPaginaIndex(null)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                add_a_photo
+              </span>
+              Tirar mais fotos
+            </button>
+
+            <button
+              type="button"
+              className="chip chip-primario"
+              onClick={() => {
+                setPreviewPaginaIndex(null);
+                void concluirAula();
+              }}
+              disabled={Boolean(ocupado)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                check_circle
+              </span>
+              Concluir ({paginas.length} páginas)
+            </button>
+          </div>
         </div>
       )}
 
