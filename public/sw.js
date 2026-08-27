@@ -3,7 +3,7 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v2";
+const CACHE_NAME = "insight-pwa-v3-camera-video";
 const ASSETS_TO_CACHE = [
   "/",
   "/library",
@@ -47,6 +47,7 @@ self.addEventListener("fetch", (event) => {
     event.request.url.includes("/conteudo/") ||
     event.request.url.includes("/materias") ||
     event.request.url.includes("/pastas") ||
+    event.request.url.includes("/videos") ||
     event.request.url.includes("/v1/") ||
     event.request.url.includes("/libras/")
   ) {

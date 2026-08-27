@@ -66,6 +66,7 @@ function CameraConteudo() {
   const [ultimaFoto, setUltimaFoto] = useState<string | null>(null);
   const [focando, setFocando] = useState(false);
   const [segundosVideo, setSegundosVideo] = useState(0);
+  const [zoomInteragindo, setZoomInteragindo] = useState(false);
   // Páginas da aula em captura. Ficam no aparelho até o aluno concluir.
   const [paginas, setPaginas] = useState<Pagina[]>([]);
   const [previewPaginaIndex, setPreviewPaginaIndex] = useState<number | null>(null);
@@ -75,12 +76,31 @@ function CameraConteudo() {
   const gravador = useGravador();
   const libras = useLibras(camera.videoRef, modo === "LIBRAS");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gestoZoomRef = useRef<{
+    pointerId: number;
+    inicioX: number;
+    inicioY: number;
+    zoomInicial: number;
+    direcao: "pendente" | "vertical" | "cancelado";
+  } | null>(null);
+  const zoomFrameRef = useRef<number | null>(null);
+  const zoomPendenteRef = useRef<number | null>(null);
+  const zoomOcultarRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zoomMinimo = Math.max(1, camera.capacidadesZoom?.min ?? 1);
   const zoomMaximo = Math.max(zoomMinimo, Math.min(5, camera.capacidadesZoom?.max ?? 5));
   const zoomPasso = Math.max(0.1, camera.capacidadesZoom?.step ?? 0.1);
   const zoomDigital = camera.zoomNativo ? 1 : camera.zoom;
+  const zoomProgresso =
+    ((camera.zoom - zoomMinimo) / Math.max(zoomMaximo - zoomMinimo, 0.1)) * 100;
 
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (zoomOcultarRef.current) clearTimeout(zoomOcultarRef.current);
+      if (zoomFrameRef.current !== null) cancelAnimationFrame(zoomFrameRef.current);
+    },
+    [],
+  );
 
   // Cronômetro do modo VÍDEO. O relógio é o sistema externo: o efeito só o
   // liga e desliga, e o setState mora no callback dele.
@@ -112,64 +132,65 @@ function CameraConteudo() {
 
   const filtroAtual = ajustes.realce ? FILTRO_REALCE : "";
 
-  // Suporte a gesto de pinça e arraste vertical (frente e trás) para zoom
-  const toqueViewfinderRef = useRef<{
-    inicioY: number;
-    distPinca: number;
-    zoomInicial: number;
-  } | null>(null);
+  // Zoom de uma mão: o visor aceita somente arraste vertical. Pointer Events
+  // cobrem toque, caneta e mouse sem misturar o gesto com a área dos botões.
+  function aoIniciarGestoZoom(e: React.PointerEvent<HTMLElement>) {
+    if (!e.isPrimary || !camera.pronta || modo === "LIBRAS") return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
-  function aoTocarInicio(e: React.TouchEvent) {
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY,
-      );
-      toqueViewfinderRef.current = {
-        inicioY: 0,
-        distPinca: dist,
-        zoomInicial: camera.zoom,
-      };
-    } else if (e.touches.length === 1) {
-      toqueViewfinderRef.current = {
-        inicioY: e.touches[0].clientY,
-        distPinca: 0,
-        zoomInicial: camera.zoom,
-      };
-    }
+    gestoZoomRef.current = {
+      pointerId: e.pointerId,
+      inicioX: e.clientX,
+      inicioY: e.clientY,
+      zoomInicial: camera.zoom,
+      direcao: "pendente",
+    };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (zoomOcultarRef.current) clearTimeout(zoomOcultarRef.current);
+    setZoomInteragindo(true);
   }
 
-  function aoTocarMover(e: React.TouchEvent) {
-    if (!toqueViewfinderRef.current) return;
+  function aplicarZoomNoProximoFrame(valor: number) {
+    zoomPendenteRef.current = valor;
+    if (zoomFrameRef.current !== null) return;
 
-    if (e.touches.length === 2 && toqueViewfinderRef.current.distPinca > 0) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY,
-      );
-      if (dist > 0) {
-        const fator = dist / toqueViewfinderRef.current.distPinca;
-        const novoZoom = Math.min(
-          zoomMaximo,
-          Math.max(zoomMinimo, toqueViewfinderRef.current.zoomInicial * fator),
-        );
-        camera.ajustarZoom(Number(novoZoom.toFixed(1)));
-      }
-    } else if (e.touches.length === 1 && toqueViewfinderRef.current.inicioY > 0) {
-      const deltaY = toqueViewfinderRef.current.inicioY - e.touches[0].clientY;
-      if (Math.abs(deltaY) > 8) {
-        const deltaZoom = (deltaY / 180) * (zoomMaximo - zoomMinimo);
-        const novoZoom = Math.min(
-          zoomMaximo,
-          Math.max(zoomMinimo, toqueViewfinderRef.current.zoomInicial + deltaZoom),
-        );
-        camera.ajustarZoom(Number(novoZoom.toFixed(1)));
-      }
-    }
+    zoomFrameRef.current = requestAnimationFrame(() => {
+      zoomFrameRef.current = null;
+      const pendente = zoomPendenteRef.current;
+      zoomPendenteRef.current = null;
+      if (pendente !== null) void camera.ajustarZoom(pendente);
+    });
   }
 
-  function aoTocarFim() {
-    toqueViewfinderRef.current = null;
+  function aoMoverGestoZoom(e: React.PointerEvent<HTMLElement>) {
+    const gesto = gestoZoomRef.current;
+    if (!gesto || gesto.pointerId !== e.pointerId || gesto.direcao === "cancelado") return;
+
+    const deltaX = e.clientX - gesto.inicioX;
+    const deltaY = gesto.inicioY - e.clientY;
+
+    if (gesto.direcao === "pendente") {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 6) return;
+      gesto.direcao = Math.abs(deltaY) >= Math.abs(deltaX) * 1.15 ? "vertical" : "cancelado";
+    }
+    if (gesto.direcao !== "vertical") return;
+
+    e.preventDefault();
+    const percurso = Math.max(180, Math.min(window.innerHeight * 0.42, 320));
+    const bruto = gesto.zoomInicial + (deltaY / percurso) * (zoomMaximo - zoomMinimo);
+    const limitado = Math.min(zoomMaximo, Math.max(zoomMinimo, bruto));
+    const emPassos =
+      zoomMinimo + Math.round((limitado - zoomMinimo) / zoomPasso) * zoomPasso;
+    aplicarZoomNoProximoFrame(Number(Math.min(zoomMaximo, emPassos).toFixed(3)));
+  }
+
+  function aoFinalizarGestoZoom(e: React.PointerEvent<HTMLElement>) {
+    if (gestoZoomRef.current?.pointerId !== e.pointerId) return;
+    gestoZoomRef.current = null;
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    zoomOcultarRef.current = setTimeout(() => setZoomInteragindo(false), 700);
   }
 
   // Na prévia, arrastar horizontalmente troca de página. Os botões continuam
@@ -224,20 +245,31 @@ function CameraConteudo() {
   /** Flash: lanterna física e clarão de tela sincronizados. */
   const comFlash = useCallback(
     async (acao: () => Promise<void>) => {
-      const querFlash = flash === "on" || flash === "auto";
+      const luminosidade = flash === "auto" ? camera.medirLuminosidade() : null;
+      // Se o navegador não permitir ler o quadro, AUTO prefere iluminar a
+      // arriscar uma captura escura. Em aparelhos compatíveis, decide localmente.
+      const querFlash =
+        flash === "on" || (flash === "auto" && (luminosidade === null || luminosidade < 105));
       if (!querFlash) return acao();
 
-      // Tenta acionar a lanterna de hardware
+      // Tenta acionar a lanterna física. Câmera frontal e navegadores sem
+      // suporte recebem o flash branco da própria tela como fallback.
       const ligou = await camera.alternarLanterna(true);
-      // Sempre ativa o clarão visual de tela cheia para iluminação máxima
-      setClarao(true);
-      // Um instante para a cena receber a luz antes do quadro ser lido.
-      await new Promise((r) => setTimeout(r, 220));
+      const usarTela = !ligou || camera.lado === "user";
+      if (usarTela) {
+        setClarao(true);
+        // Garante que o branco foi realmente pintado antes de capturar.
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+      }
+      // A câmera precisa de alguns quadros para ajustar exposição à nova luz.
+      await new Promise((r) => setTimeout(r, ligou ? 280 : 140));
       try {
         await acao();
       } finally {
         if (ligou) await camera.alternarLanterna(false);
-        setTimeout(() => setClarao(false), 150);
+        if (usarTela) setTimeout(() => setClarao(false), 100);
       }
     },
     [camera, flash],
@@ -252,6 +284,9 @@ function CameraConteudo() {
       // excedentes. Uma segunda tentativa cobre o 503 passageiro dele.
       let lidas = paginas;
       let materiaSugeridaId: string | null = null;
+      let paginasAnalisadas = 0;
+      let paginasLixo = 0;
+      const motivosLixo: string[] = [];
       for (const [i, pagina] of paginas.entries()) {
         setOcupado(`Lendo página ${i + 1} de ${paginas.length}…`);
         setPaginas((antes) => marcarLendo(antes, pagina.id));
@@ -261,6 +296,11 @@ function CameraConteudo() {
           try {
             const analise = await analisarImagem(blob);
             texto = analise.texto_extraido || "";
+            paginasAnalisadas += 1;
+            if (analise.conteudo_lixo) {
+              paginasLixo += 1;
+              if (analise.motivo_lixo) motivosLixo.push(analise.motivo_lixo);
+            }
             if (analise.materia_sugerida_id && !materiaSugeridaId) {
               materiaSugeridaId = analise.materia_sugerida_id;
             }
@@ -297,6 +337,7 @@ function CameraConteudo() {
       if (falhas) avisar(`${falhas} de ${lidas.length} páginas não puderam ser lidas.`, "info");
 
       setOcupado(`Salvando ${lidas.length} páginas…`);
+      const recomendadoLixeira = paginasAnalisadas > 0 && paginasLixo === paginasAnalisadas;
       // As imagens são data URLs; o backend recebe binário.
       const blobs = await Promise.all(
         lidas.map(async (p) => (await fetch(p.imagem)).blob()),
@@ -307,6 +348,10 @@ function CameraConteudo() {
           texto: textoDaAula(lidas),
           paginas: blobs.length,
           materia_sugerida_id: materiaSugeridaId,
+          recomendado_lixeira: recomendadoLixeira,
+          motivo_lixeira: recomendadoLixeira
+            ? motivosLixo[0] || "A captura parece vazia, acidental ou sem conteúdo útil de estudo."
+            : null,
         }),
       );
       if (lidas.length > 0) {
@@ -316,7 +361,7 @@ function CameraConteudo() {
             "scan_images",
             JSON.stringify(lidas.map((p) => p.miniatura || p.imagem)),
           );
-        } catch (_) {}
+        } catch {}
       }
       // A escolha da matéria continua na tela de organizar; guardamos as
       // imagens aqui até lá.
@@ -541,9 +586,10 @@ function CameraConteudo() {
       <main
         className="camera-main"
         onClick={() => gaveta && setGaveta(null)}
-        onTouchStart={aoTocarInicio}
-        onTouchMove={aoTocarMover}
-        onTouchEnd={aoTocarFim}
+        onPointerDown={aoIniciarGestoZoom}
+        onPointerMove={aoMoverGestoZoom}
+        onPointerUp={aoFinalizarGestoZoom}
+        onPointerCancel={aoFinalizarGestoZoom}
       >
         <video
           ref={camera.videoRef}
@@ -838,54 +884,6 @@ function CameraConteudo() {
 
       {/* Deck inferior com layout flexbox fluido que não sobrepõe em nenhuma tela */}
       <div className="camera-bottom-deck">
-        {/* Régua de Zoom com Arraste Tátil e Pílulas Rápidas */}
-        {camera.pronta && modo !== "LIBRAS" && (
-          <div className="camera-zoom-bar" role="group" aria-label="Controle de zoom">
-            <div className="camera-zoom-pills-row">
-              {[1, 2, 3, 5].map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  className={`zoom-pill-btn${Math.abs(camera.zoom - z) < 0.25 ? " active" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void camera.ajustarZoom(z);
-                  }}
-                  aria-label={`Zoom ${z} vezes`}
-                >
-                  {z}×
-                </button>
-              ))}
-            </div>
-
-            <div className="camera-zoom-slider-row">
-              <span className="material-symbols-outlined zoom-icon" aria-hidden="true">
-                remove
-              </span>
-              <input
-                type="range"
-                min={zoomMinimo}
-                max={zoomMaximo}
-                step={zoomPasso}
-                value={camera.zoom}
-                onChange={(e) => void camera.ajustarZoom(Number(e.target.value))}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Arraste para ajustar o zoom"
-                className="camera-zoom-range"
-                style={{
-                  background: `linear-gradient(to right, #38bdf8 ${
-                    ((camera.zoom - zoomMinimo) / Math.max(zoomMaximo - zoomMinimo, 0.1)) * 100
-                  }%, rgba(255, 255, 255, 0.2) 0)`,
-                }}
-              />
-              <span className="material-symbols-outlined zoom-icon" aria-hidden="true">
-                add
-              </span>
-              <span className="camera-zoom-live-badge">{camera.zoom.toFixed(1)}×</span>
-            </div>
-          </div>
-        )}
-
         <div className="camera-mode-selector">
           {MODOS.map((m) => (
             <button
@@ -924,43 +922,56 @@ function CameraConteudo() {
             )}
           </Link>
 
-          <button
-            type="button"
-            className="shutter-button"
-            onClick={aoDisparar}
-            disabled={!!ocupado || contagem > 0 || (!camera.pronta && modo !== "AULA")}
-            aria-label={
-              modo === "AULA"
-                ? aula.gravando
-                  ? "Encerrar aula"
-                  : "Iniciar aula"
-                : modo === "VÍDEO"
-                  ? gravandoVideo
-                    ? "Parar gravação"
-                    : "Gravar vídeo"
-                  : modo === "LIBRAS"
-                    ? "Falar a frase montada"
-                    : "Capturar"
-            }
+          <div
+            className={`shutter-zoom-control${zoomInteragindo ? " is-adjusting" : ""}${
+              camera.pronta && modo !== "LIBRAS" ? " has-zoom" : ""
+            }`}
+            style={{ "--zoom-progress": `${Math.min(100, Math.max(0, zoomProgresso))}%` } as React.CSSProperties}
           >
-            <div className="shutter-outer">
-              <div className={`shutter-inner${ocupadoComGravacao ? " recording" : ""}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: 32 }}>
-                  {modo === "AULA"
-                    ? aula.gravando
-                      ? "stop"
-                      : "mic"
-                    : modo === "VÍDEO"
-                      ? gravandoVideo
+            <span className="shutter-zoom-ring" aria-hidden="true" />
+            <button
+              type="button"
+              className="shutter-button"
+              onClick={aoDisparar}
+              disabled={!!ocupado || contagem > 0 || (!camera.pronta && modo !== "AULA")}
+              aria-label={
+                modo === "AULA"
+                  ? aula.gravando
+                    ? "Encerrar aula"
+                    : "Iniciar aula"
+                  : modo === "VÍDEO"
+                    ? gravandoVideo
+                      ? "Parar gravação"
+                      : "Gravar vídeo"
+                    : modo === "LIBRAS"
+                      ? "Falar a frase montada"
+                      : "Capturar"
+              }
+            >
+              <div className="shutter-outer">
+                <div className={`shutter-inner${ocupadoComGravacao ? " recording" : ""}`}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 32 }}>
+                    {modo === "AULA"
+                      ? aula.gravando
                         ? "stop"
-                        : "videocam"
-                      : modo === "LIBRAS"
-                        ? "campaign"
-                        : "photo_camera"}
-                </span>
+                        : "mic"
+                      : modo === "VÍDEO"
+                        ? gravandoVideo
+                          ? "stop"
+                          : "videocam"
+                        : modo === "LIBRAS"
+                          ? "campaign"
+                          : "photo_camera"}
+                  </span>
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+            {camera.pronta && modo !== "LIBRAS" && (
+              <output className="shutter-zoom-readout" aria-label="Zoom atual" aria-live="off">
+                <strong>{camera.zoom.toFixed(1)}×</strong>
+              </output>
+            )}
+          </div>
 
           <div style={{ display: "flex", gap: 8 }}>
             <button

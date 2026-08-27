@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
 import GaleriaVideos from "@/components/GaleriaVideos";
@@ -12,11 +13,12 @@ import { CHAVE_LIXEIRA, lerDescartados, descartar, restaurar } from "@/lib/desca
 type Dados = { itens: Conteudo[]; pastas: Pasta[]; materias: Materia[] };
 
 function LibraryConteudo() {
+  const abrirLixeira = useSearchParams().get("lixeira") === "1";
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [selecionando, setSelecionando] = useState(false);
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
-  const [verLixeira, setVerLixeira] = useState(false);
+  const [verLixeira, setVerLixeira] = useState(abrirLixeira);
 
   const lixeiraBruta = useLocalStorage(CHAVE_LIXEIRA, "[]");
   const descartados = useMemo(() => lerDescartados(lixeiraBruta), [lixeiraBruta]);
@@ -266,7 +268,15 @@ function Miniatura({
 export default function LibraryPage() {
   return (
     <GuardaSessao>
-      <LibraryConteudo />
+      <Suspense
+        fallback={
+          <main className="container archive-main sem-topbar">
+            <div className="loading-container"><div className="spinner" /></div>
+          </main>
+        }
+      >
+        <LibraryConteudo />
+      </Suspense>
     </GuardaSessao>
   );
 }

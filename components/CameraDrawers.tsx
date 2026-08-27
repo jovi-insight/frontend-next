@@ -155,6 +155,12 @@ export function GavetaFlash({
             disparo, como flash de tela.
           </p>
         )}
+        {disponivel && (
+          <p className="drawer-nota">
+            AUTO mede a luz da cena no próprio aparelho e aciona a lanterna somente quando
+            necessário. A intensidade controla o fallback de tela.
+          </p>
+        )}
       </div>
     </div>
   );

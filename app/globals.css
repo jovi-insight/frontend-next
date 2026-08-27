@@ -152,11 +152,19 @@ body:has(.camera-container) {
 .camera-container {
   --camera-safe-top: env(safe-area-inset-top, 0px);
   --camera-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --camera-deck-height: 214px;
   width: 100%;
   height: 100vh;
   height: 100dvh;
   min-height: 100svh;
   isolation: isolate;
+}
+
+.camera-container .camera-main {
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .camera-container .top-header {
@@ -239,14 +247,10 @@ body:has(.camera-container) {
   margin-bottom: 4px;
 }
 
-/* A guia de enquadramento termina antes do deck. A altura cresce quando a
-   régua de zoom aparece, sem depender de pixels absolutos de um modelo só. */
+/* A guia de enquadramento termina antes do deck e nunca fica escondida pelos
+   controles. O deck não cresce mais para acomodar uma régua de zoom. */
 .camera-container .viewfinder-overlay {
-  bottom: calc(170px + var(--camera-safe-bottom));
-}
-
-.camera-container:has(.camera-zoom-bar) .viewfinder-overlay {
-  bottom: calc(230px + var(--camera-safe-bottom));
+  bottom: calc(var(--camera-deck-height) + var(--camera-safe-bottom));
 }
 
 /* Legenda da aula ao vivo, sobre a imagem. */
@@ -357,132 +361,124 @@ body:has(.camera-container) {
   transition: opacity 0.1s ease-out;
 }
 
-/* Barra de Zoom Tátil com Arraste e Pílulas de Acesso Rápido */
-.camera-zoom-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  background: rgba(15, 18, 30, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 24px;
-  padding: 6px 14px;
-  width: min(320px, calc(100% - 32px));
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
-  user-select: none;
-  touch-action: none;
+.trash-recommendation {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  margin: -10px 0 28px;
+  padding: 16px;
+  border: 1px solid rgba(255, 214, 0, 0.34);
+  border-radius: 16px;
+  background: rgba(255, 214, 0, 0.08);
 }
 
-.camera-zoom-pills-row {
+.trash-recommendation > .material-symbols-outlined {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 214, 0, 0.14);
+  color: var(--primary);
+}
+
+.trash-recommendation h2 { font-size: 14px; margin-bottom: 5px; }
+.trash-recommendation p {
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.trash-recommendation label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.trash-recommendation input { width: 19px; height: 19px; accent-color: var(--primary); }
+
+/* Zoom de uma mão. O progresso acompanha o contorno do disparador e o valor
+   fica sempre visível como um pequeno indicador, inclusive no PWA. */
+.shutter-zoom-control {
+  --zoom-progress: 0%;
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+  display: grid;
+  place-items: center;
+}
+
+.shutter-zoom-control .shutter-button {
+  position: relative;
+  z-index: 2;
+}
+
+.shutter-zoom-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from -90deg,
+      var(--primary) 0 var(--zoom-progress),
+      rgba(255, 255, 255, 0.2) var(--zoom-progress) 100%
+    );
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  pointer-events: none;
+  -webkit-mask: radial-gradient(circle, transparent 86%, #000 89%);
+  mask: radial-gradient(circle, transparent 86%, #000 89%);
+}
+
+.shutter-zoom-control.has-zoom .shutter-zoom-ring {
+  opacity: 0.62;
+  transform: scale(1);
+}
+
+.shutter-zoom-control.is-adjusting .shutter-zoom-ring {
+  opacity: 1;
+  transform: scale(1.06);
+  box-shadow: 0 0 22px rgba(255, 255, 255, 0.22);
+}
+
+.shutter-zoom-readout {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-}
-
-.zoom-pill-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.zoom-pill-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  min-width: 38px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 15, 15, 0.88);
   color: #fff;
+  line-height: 1;
+  opacity: 0.9;
+  transform: translateX(-50%);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  pointer-events: none;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
-.zoom-pill-btn.active {
-  background: linear-gradient(135deg, #06b6d4, #6366f1);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
-  transform: scale(1.06);
-}
-
-.camera-zoom-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.camera-zoom-slider-row .zoom-icon {
+.shutter-zoom-readout strong {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.6);
-  user-select: none;
-}
-
-.camera-zoom-range {
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.2);
-  outline: none;
-  cursor: pointer;
-}
-
-.camera-zoom-range::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #38bdf8;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
-  cursor: pointer;
-  transition: transform 0.1s ease;
-}
-
-.camera-zoom-range::-webkit-slider-thumb:active {
-  transform: scale(1.2);
-}
-
-.camera-zoom-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #38bdf8;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
-  cursor: pointer;
-}
-
-.camera-zoom-live-badge {
-  font-size: 12px;
-  font-weight: 800;
-  color: #38bdf8;
-  min-width: 34px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.camera-zoom-value {
-  flex: 0 0 auto;
-  min-width: 44px;
-  min-height: 36px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--primary);
-  color: var(--on-primary);
-  font-size: 12px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  touch-action: manipulation;
+}
+
+.shutter-zoom-control.is-adjusting .shutter-zoom-readout {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.08);
 }
 
 /* Modal de Prévia de Página / Fotos do Scan */
@@ -1173,7 +1169,7 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: calc(300px + var(--camera-safe-bottom, 0px));
+  bottom: calc(var(--camera-deck-height, 214px) + 70px + var(--camera-safe-bottom, 0px));
   z-index: 30;
   display: flex;
   align-items: center;
@@ -1439,6 +1435,217 @@ body[data-perfil~="dislexia-tdah"] .pulse {
    para ele viraria um vão em branco no topo. */
 .archive-main.sem-topbar {
   padding-top: 32px;
+}
+
+/* ─── Pastas ──────────────────────────────────────────────
+   Esta tela carrega nomes vindos da IA e do usuário. `minmax(0, 1fr)` é
+   essencial: sem ele, um nome comprido aumenta a largura da grade e empurra
+   inclusive a navegação inferior para fora do viewport no celular. */
+.folders-main,
+.folders-grid,
+.folders-grid > * {
+  min-width: 0;
+}
+
+.library-grid.folders-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.folders-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.folders-grid .folder-card {
+  min-width: 0;
+  max-width: 100%;
+  color: inherit;
+  font: inherit;
+}
+
+.folder-card-copy {
+  width: 100%;
+  min-width: 0;
+}
+
+.folders-empty {
+  grid-column: 1 / -1;
+  padding: 40px 16px;
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 599px) {
+  .archive-main.folders-main {
+    padding-top: max(18px, env(safe-area-inset-top, 0px));
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .folders-breadcrumb {
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0 -4px 12px;
+    padding-inline: 4px;
+    overflow: hidden;
+  }
+
+  .folders-breadcrumb > * {
+    flex: 0 0 auto;
+  }
+
+  /* No terceiro nível, o celular mostra "matéria > pasta". O nível raiz
+     continua acessível pelo botão Voltar e não deixa uma palavra cortada na
+     borda do viewport. */
+  .folders-breadcrumb > *:not(:nth-last-child(-n+3)) {
+    display: none;
+  }
+
+  .folders-breadcrumb .link-limpo,
+  .folders-breadcrumb > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .folders-breadcrumb > :nth-last-child(3) {
+    max-width: 32vw;
+  }
+
+  .folders-breadcrumb > :last-child {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .folders-topbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 0;
+    padding-bottom: 14px;
+  }
+
+  .folders-topbar .section-title {
+    width: 100%;
+  }
+
+  .folders-toolbar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+    width: 100%;
+  }
+
+  .folders-toolbar .chip {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 10px;
+    justify-content: center;
+    line-height: 1.2;
+    letter-spacing: 0.65px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .library-grid.folders-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .folders-grid .folder-card {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 12px;
+    width: 100%;
+    min-height: 82px;
+    padding: 14px;
+    border-radius: 18px;
+    text-align: left;
+  }
+
+  .folders-grid .folder-card .card-icon-container {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    width: 48px;
+    height: 48px;
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  .folders-grid .folder-card-copy {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .folders-grid .folder-card:not(:has(.card-acoes)) .folder-card-copy {
+    grid-column: 2 / 4;
+  }
+
+  .folders-grid .card-title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .folders-grid .card-subtitle {
+    margin-top: 5px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .folders-grid .card-acoes {
+    position: static;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    display: flex;
+    gap: 6px;
+    margin-left: 2px;
+    opacity: 1;
+  }
+
+  .folders-grid .card-acoes button {
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .folders-grid .card-acoes .acao-perigo {
+    background: rgba(239, 68, 68, 0.18);
+    color: #ff6961;
+  }
+}
+
+@media (max-width: 380px) {
+  .folders-grid .folder-card:has(.card-acoes) {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    column-gap: 10px;
+  }
+
+  .folders-grid .folder-card:has(.card-acoes) .card-icon-container {
+    width: 44px;
+    height: 44px;
+  }
+
+  .folders-grid .card-acoes {
+    flex-direction: column;
+  }
+
+  .folders-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Player da narração: play/pause à esquerda, fechar à direita, o resto no meio.
@@ -1722,18 +1929,26 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 
 /* Celulares baixos (SE antigo, Android com barras do navegador abertas): layout compacto fluido */
 @media (max-height: 700px) {
+  .camera-container {
+    --camera-deck-height: 184px;
+  }
+
   .camera-bottom-deck {
     gap: 4px;
     padding-bottom: max(4px, var(--camera-safe-bottom));
   }
 
-  .camera-zoom-bar {
-    padding: 4px 10px;
-    gap: 3px;
-  }
-
   .camera-container .shutter-outer { width: 62px; height: 62px; }
   .camera-container .shutter-inner { width: 46px; height: 46px; }
+
+  .camera-container .shutter-zoom-control {
+    width: 72px;
+    height: 72px;
+    flex-basis: 72px;
+  }
+
+  .camera-container .shutter-zoom-readout { top: -1px; min-width: 34px; height: 20px; }
+  .camera-container .shutter-zoom-readout strong { font-size: 13px; }
 
   .camera-container .bottom-nav {
     height: 52px;

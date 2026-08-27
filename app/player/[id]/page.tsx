@@ -59,6 +59,7 @@ function PlayerConteudo({ id }: { id: string }) {
   useEffect(() => {
     let ativo = true;
     let url: string | null = null;
+    let revogar = false;
 
     obterVideo(id)
       .then((v) => {
@@ -68,14 +69,23 @@ function PlayerConteudo({ id }: { id: string }) {
           return;
         }
         setItem(v);
-        url = URL.createObjectURL(v.blob);
+        if (v.blob) {
+          url = URL.createObjectURL(v.blob);
+          revogar = true;
+        } else {
+          url = v.remoteUrl || null;
+        }
+        if (!url) {
+          setErro("O arquivo deste vídeo não está disponível.");
+          return;
+        }
         setUrlVideo(url);
       })
       .catch((e: Error) => ativo && setErro(e.message));
 
     return () => {
       ativo = false;
-      if (url) URL.revokeObjectURL(url);
+      if (url && revogar) URL.revokeObjectURL(url);
     };
   }, [id]);
 
@@ -110,10 +120,22 @@ function PlayerConteudo({ id }: { id: string }) {
     setTranscrevendo(true);
     setErro(null);
     try {
-      const resultado = await transcreverMidia(item.blob, item.name);
+      let midia = item.blob;
+      if (!midia && item.remoteUrl) {
+        const resposta = await fetch(item.remoteUrl);
+        if (!resposta.ok) throw new Error("Não foi possível baixar o vídeo salvo para transcrever.");
+        midia = await resposta.blob();
+      }
+      if (!midia) throw new Error("O arquivo do vídeo não está disponível.");
+      const resultado = await transcreverMidia(midia, item.name);
       const salvo = await salvarTranscricao(item.id, resultado);
       setItem(salvo);
-      avisar("Vídeo transcrito com sucesso!", "sucesso");
+      avisar(
+        salvo.syncStatus === "sincronizado"
+          ? "Vídeo transcrito e atualizado no banco!"
+          : "Transcrição salva no aparelho; sincronização pendente.",
+        salvo.syncStatus === "sincronizado" ? "sucesso" : "info",
+      );
       return true;
     } catch (e) {
       setErro(
@@ -236,10 +258,10 @@ function PlayerConteudo({ id }: { id: string }) {
 
   async function excluirVideo() {
     if (!item) return;
-    if (!confirm(`Deseja realmente excluir o vídeo "${item.name}"?`)) return;
+    if (!confirm(`Deseja excluir o vídeo "${item.name}" do aparelho e do banco?`)) return;
     try {
       await removerVideo(item.id);
-      avisar("Vídeo excluído da galeria.", "sucesso");
+      avisar("Vídeo excluído do aparelho e do banco.", "sucesso");
       router.push("/library");
     } catch (e) {
       avisar((e as Error).message, "erro");
@@ -528,7 +550,13 @@ function PlayerConteudo({ id }: { id: string }) {
               <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
               <h3 className="secao-titulo">Quiz sobre a Aula</h3>
             </div>
-            <Quiz conteudoId={item.conteudoId || item.id} />
+            {item.conteudoId && isUuid(item.conteudoId) ? (
+              <Quiz conteudoId={item.conteudoId} />
+            ) : (
+              <p className="summary-text" style={{ opacity: 0.6 }}>
+                Salve a transcrição como conteúdo de uma matéria para gerar um quiz desta aula.
+              </p>
+            )}
           </section>
 
           {/* Barra Lateral: Termos-Chave, Guia de Estudo e Detalhes */}
@@ -584,6 +612,12 @@ function PlayerConteudo({ id }: { id: string }) {
                 <div className="flex items-center justify-between">
                   <span style={{ color: "var(--on-surface-variant)" }}>Tamanho</span>
                   <span>{(item.size / (1024 * 1024)).toFixed(1)} MB</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span style={{ color: "var(--on-surface-variant)" }}>Sincronização</span>
+                  <span>
+                    {item.syncStatus === "sincronizado" ? "Banco + offline" : "Pendente"}
+                  </span>
                 </div>
                 {item.transcription?.language && (
                   <div className="flex items-center justify-between">
