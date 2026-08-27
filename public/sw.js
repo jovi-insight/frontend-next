@@ -47,7 +47,8 @@ self.addEventListener("fetch", (event) => {
     event.request.url.includes("/conteudo/") ||
     event.request.url.includes("/materias") ||
     event.request.url.includes("/pastas") ||
-    event.request.url.includes(":8001")
+    event.request.url.includes("/v1/") ||
+    event.request.url.includes("/libras/")
   ) {
     return;
   }

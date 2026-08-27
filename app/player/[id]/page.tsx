@@ -117,7 +117,7 @@ function PlayerConteudo({ id }: { id: string }) {
       return true;
     } catch (e) {
       setErro(
-        `${(e as Error).message} — confira se o microserviço de Libras está no ar (porta 8001).`,
+        `${(e as Error).message} — confira a conexão com o backend ou a chave do Gemini.`,
       );
       return false;
     } finally {

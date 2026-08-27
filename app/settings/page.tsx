@@ -11,8 +11,9 @@ import {
   removerLocalStorage,
 } from "@/lib/use-local-storage";
 import { avisar } from "@/lib/avisos";
+import { BASE_URL } from "@/lib/api";
 
-const URL_LIBRAS_PADRAO = "http://localhost:8001";
+const URL_LIBRAS_PADRAO = BASE_URL;
 
 function SettingsConteudo() {
   const router = useRouter();

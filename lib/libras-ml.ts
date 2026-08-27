@@ -1,13 +1,13 @@
+import { BASE_URL } from "./api";
+
 /**
- * Microserviço de Libras (../libras-service). Porte reduzido de
- * frontend/js/libras-ml-api.js: aqui só a transcrição de mídia, que é o que o
- * player usa. Coleta e treino de landmarks vêm junto com a câmera.
+ * Módulo de Libras e Transcrição integrado ao backend da JOVI.
  */
 
-const URL_PADRAO = "http://localhost:8001";
+const URL_PADRAO = BASE_URL;
 const DEZ_MINUTOS = 10 * 60 * 1000;
 
-/** O serviço pode estar em outra máquina — daí a URL vir do localStorage. */
+/** O serviço pode ser customizado via localStorage ou usar a URL padrão do backend. */
 export function baseUrlLibras(): string {
   const salva = typeof localStorage !== "undefined" && localStorage.getItem("jovi.libras.ml.url");
   return String(salva || URL_PADRAO).replace(/\/$/, "");
@@ -22,6 +22,21 @@ export type RespostaTranscricao = {
   text?: string;
   segments?: { start: number; end: number; text: string }[];
   model?: string;
+};
+
+export type PredicaoLibras = {
+  letter: string | null;
+  candidate?: string;
+  unknown: boolean;
+  confidence: number;
+  probability?: number;
+  margin?: number;
+  distance?: number;
+  radius?: number;
+  proximity?: number;
+  reason?: string | null;
+  source?: string;
+  model_version?: string | null;
 };
 
 /** POST /v1/media/transcribe — o Gemini transcreve com marcação de tempo. */
@@ -64,3 +79,29 @@ export async function transcreverMidia(arquivo: Blob, nome = "midia"): Promise<R
     clearTimeout(limite);
   }
 }
+
+/** POST /v1/predict — inferência neural do alfabeto de Libras */
+export async function inferirLandmarks(
+  landmarks: { x: number; y: number; z?: number }[],
+): Promise<PredicaoLibras> {
+  const resposta = await fetch(`${baseUrlLibras()}/v1/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ landmarks }),
+  });
+  if (!resposta.ok) throw new Error("Falha na inferência neural de Libras");
+  return await resposta.json();
+}
+
+/** GET /v1/model — status do modelo neural publicado */
+export async function statusModelo(): Promise<{
+  ready: boolean;
+  model_version: string | null;
+  classes: string[];
+  message?: string;
+}> {
+  const resposta = await fetch(`${baseUrlLibras()}/v1/model`);
+  if (!resposta.ok) throw new Error("Falha ao consultar modelo de Libras");
+  return await resposta.json();
+}
+
