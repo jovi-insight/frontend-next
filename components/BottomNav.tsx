@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 // No vanilla cada página marcava o item ativo à mão. Aqui o pathname resolve
 // isso sozinho — é o único motivo de o componente ser client.
 const ITENS = [
-  { href: "/", icone: "document_scanner", rotulo: "Scan" },
+  { href: "/", icone: "photo_camera", rotulo: "Câmera" },
   { href: "/library", icone: "history", rotulo: "Recentes" },
   { href: "/folders", icone: "folder_open", rotulo: "Pastas" },
   { href: "/settings", icone: "settings", rotulo: "Ajustes" },
