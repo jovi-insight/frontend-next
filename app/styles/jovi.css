@@ -982,7 +982,16 @@ body:has(.bottom-nav) {
     letter-spacing: 1px;
 }
 
-/* Aside do resumo: imagem original + vídeos recomendados pela IA */
+/* Mídia primeiro: ao abrir o documento, a imagem e as recomendações aparecem
+   antes do resumo, guia de estudo, termos e quiz em qualquer largura de tela. */
+.summary-media-principal {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 36px;
+}
+
+.summary-media-principal > section,
 .summary-aside > section {
     display: flex;
     flex-direction: column;
@@ -990,16 +999,25 @@ body:has(.bottom-nav) {
 }
 
 .doc-original-image {
+    display: block;
     width: 100%;
-    border-radius: 4px;
+    max-height: min(72dvh, 760px);
+    object-fit: contain;
+    border-radius: 16px;
     border: 1px solid rgba(72, 72, 72, 0.3);
     background-color: var(--surface-low);
 }
 
 .video-rec-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+}
+
+@media (min-width: 768px) {
+    .summary-media-recomendacoes .video-rec-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .video-rec-item {
@@ -1009,7 +1027,7 @@ body:has(.bottom-nav) {
     padding: 12px 14px;
     background-color: var(--surface-low);
     border: 1px solid rgba(72, 72, 72, 0.3);
-    border-radius: 4px;
+    border-radius: 12px;
     text-decoration: none;
     color: var(--on-surface);
     transition: border-color 0.2s, background-color 0.2s;

@@ -221,6 +221,71 @@ function SummaryConteudo({ id }: { id: string }) {
           </div>
         </section>
 
+        {(doc.imagens?.length > 0 || doc.videos?.length > 0) && (
+          <div className="summary-media-principal" aria-label="Mídia do documento">
+            {doc.imagens?.length > 0 && (
+              <section aria-labelledby="titulo-imagem-documento">
+                <div className="flex items-center gap-3">
+                  <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
+                  <h3 id="titulo-imagem-documento" className="secao-titulo">
+                    {doc.imagens.length > 1
+                      ? `Imagens do documento — ${doc.imagens.length} páginas`
+                      : "Imagem original"}
+                  </h3>
+                </div>
+                <div className={doc.imagens.length > 1 ? "paginas-aula" : undefined}>
+                  {doc.imagens.map((img, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={img.id}
+                      src={img.url_storage}
+                      alt={
+                        doc.imagens.length > 1
+                          ? `Página ${i + 1} do documento`
+                          : "Imagem original do documento"
+                      }
+                      className="doc-original-image"
+                      loading={i === 0 ? "eager" : "lazy"}
+                      fetchPriority={i === 0 ? "high" : "auto"}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {doc.videos?.length > 0 && (
+              <section className="summary-media-recomendacoes" aria-labelledby="titulo-videos-recomendados">
+                <div className="flex items-center gap-3">
+                  <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
+                  <h3 id="titulo-videos-recomendados" className="secao-titulo">
+                    Vídeos recomendados
+                  </h3>
+                </div>
+                <div className="video-rec-list">
+                  {doc.videos.map((v) => (
+                    <a
+                      key={v.id}
+                      href={v.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="video-rec-item"
+                    >
+                      <span className="material-symbols-outlined" style={{ color: "#ff0000" }}>
+                        smart_display
+                      </span>
+                      {/* Título vem da IA: entra como texto, nunca como HTML. */}
+                      <span className="video-rec-title">{v.titulo}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.5 }}>
+                        open_in_new
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
         <div className="summary-grid">
           <section className="summary-content">
             <div className="flex items-center justify-between mb-4">
@@ -401,67 +466,10 @@ function SummaryConteudo({ id }: { id: string }) {
               </section>
             )}
 
-            {doc.imagens?.length > 0 && (
-              <section>
-                <div className="flex items-center gap-3">
-                  <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
-                  <h3 className="secao-titulo">
-                    {doc.imagens.length > 1 ? `Aula — ${doc.imagens.length} páginas` : "Original"}
-                  </h3>
-                </div>
-                <div className={doc.imagens.length > 1 ? "paginas-aula" : undefined}>
-                  {doc.imagens.map((img, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={img.id}
-                      src={img.url_storage}
-                      alt={
-                        doc.imagens.length > 1
-                          ? `Página ${i + 1} da aula`
-                          : "Imagem original do documento"
-                      }
-                      className="doc-original-image"
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {doc.videos?.length > 0 && (
-              <section>
-                <div className="flex items-center gap-3">
-                  <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
-                  <h3 className="secao-titulo">Vídeos recomendados</h3>
-                </div>
-                <div className="video-rec-list">
-                  {doc.videos.map((v) => (
-                    <a
-                      key={v.id}
-                      href={v.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="video-rec-item"
-                    >
-                      <span className="material-symbols-outlined" style={{ color: "#ff0000" }}>
-                        smart_display
-                      </span>
-                      {/* Título vem da IA: entra como texto, nunca como HTML. */}
-                      <span className="video-rec-title">{v.titulo}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.5 }}>
-                        open_in_new
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
           </aside>
         </div>
 
-        {/* Fora da .summary-grid de propósito: dentro da coluna de conteúdo o
-            quiz cairia no meio da página no celular, empurrando vídeos e
-            imagem para depois de dezenas de perguntas. */}
+        {/* Fora da .summary-grid para continuar depois do conteúdo e dos termos. */}
         <div className="flex items-center gap-3 mb-4" style={{ marginTop: 40 }}>
           <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
           <h3 className="secao-titulo">Teste seu conhecimento</h3>
