@@ -1,19 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { inferirLandmarks, statusModelo } from "./libras-ml";
 
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
 const PAUSA_DE_PALAVRA = 2000;
 
-const CDN_MEDIAPIPE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands";
+const VERSAO_MEDIAPIPE = "0.4.1675469240";
+const CDN_MEDIAPIPE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${VERSAO_MEDIAPIPE}`;
+const scriptsCarregando = new Map<string, Promise<void>>();
 
 export type Landmark = { x: number; y: number; z: number };
+
+export type QuadroLandmarks = {
+  landmarks: Landmark[];
+  capturadoEm: number;
+};
 
 type Resultado = {
   status: "sem-mao" | "incerto" | "movimento" | "estabilizando" | "confirmado";
   letter?: string;
   confidence?: number;
   motion?: { speed: number; moving: boolean };
+  dynamic?: boolean;
+};
+
+type PredicaoBackendEstavel = {
+  letter: string;
+  confidence: number;
+  recebidaEm: number;
 };
 
 type Reconhecedor = {
@@ -54,16 +69,58 @@ function temWebGL(): boolean {
   }
 }
 
-function carregarScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+function removerScript(src: string) {
+  document.querySelectorAll<HTMLScriptElement>(`script[src="${src}"]`).forEach((tag) => tag.remove());
+}
+
+function carregarScript(src: string, disponivel: () => boolean): Promise<void> {
+  if (disponivel()) return Promise.resolve();
+
+  const pendente = scriptsCarregando.get(src);
+  if (pendente) return pendente;
+
+  // Uma tag que sobrou de uma navegação anterior pode ter falhado ou ainda
+  // estar carregando. A Promise compartilhada abaixo passa a ser a fonte da
+  // verdade para todas as montagens do hook.
+  removerScript(src);
+
+  const carregamentoBruto = new Promise<void>((resolve, reject) => {
     const tag = document.createElement("script");
     tag.src = src;
     tag.async = true;
-    tag.onload = () => resolve();
+    tag.dataset.insightDependencia = "carregando";
+    tag.onload = () => {
+      tag.dataset.insightDependencia = "carregada";
+      if (disponivel()) resolve();
+      else reject(new Error(`A dependência ${src} carregou sem ficar disponível.`));
+    };
     tag.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
     document.head.appendChild(tag);
   });
+
+  const carregamento = carregamentoBruto.finally(() => scriptsCarregando.delete(src));
+  scriptsCarregando.set(src, carregamento);
+  return carregamento;
+}
+
+async function carregarScriptComRetry(
+  src: string,
+  disponivel: () => boolean,
+  mensagem: string,
+): Promise<void> {
+  let ultimoErro: unknown;
+  for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+    try {
+      await carregarScript(src, disponivel);
+      return;
+    } catch (erro) {
+      ultimoErro = erro;
+      removerScript(src);
+      if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+  }
+  console.error(ultimoErro);
+  throw new Error(mensagem);
 }
 
 /**
@@ -77,6 +134,7 @@ function carregarScript(src: string): Promise<void> {
 export function useLibras(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   ativo: boolean,
+  reconhecer = true,
 ) {
   const [letra, setLetra] = useState<string | null>(null);
   const [confianca, setConfianca] = useState(0);
@@ -85,6 +143,8 @@ export function useLibras(
   const [soletrando, setSoletrando] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [maoDetectada, setMaoDetectada] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handsRef = useRef<Hands | null>(null);
@@ -93,6 +153,12 @@ export function useLibras(
   const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ultimaLetraRef = useRef<string | null>(null);
   const liberadoRef = useRef(true);
+  const quadroRef = useRef<QuadroLandmarks | null>(null);
+  const modeloBackendAtivoRef = useRef(false);
+  const predicaoBackendRef = useRef<PredicaoBackendEstavel | null>(null);
+  const bufferBackendRef = useRef<PredicaoBackendEstavel[]>([]);
+  const backendOcupadoRef = useRef(false);
+  const backendSolicitadoEmRef = useRef(0);
 
   /** Desenha os 21 pontos e as conexões da mão sobre o vídeo. */
   const desenhar = useCallback((pontos: Landmark[] | null) => {
@@ -166,11 +232,21 @@ export function useLibras(
             "Este navegador não tem aceleração gráfica (WebGL), e o rastreamento da mão travaria a página. Ative a aceleração por hardware nas configurações do navegador.",
           );
         }
-        await carregarScript(`${CDN_MEDIAPIPE}/hands.min.js`);
-        await carregarScript("/vendor/libras-recognizer.js");
+        await carregarScriptComRetry(
+          `${CDN_MEDIAPIPE}/hands.min.js`,
+          () => typeof window.Hands === "function",
+          "Não foi possível carregar o rastreamento da mão. Verifique sua conexão e tente novamente.",
+        );
+        if (reconhecer) {
+          await carregarScriptComRetry(
+            "/vendor/libras-recognizer.js",
+            () => typeof window.LibrasAlphabetRecognizer === "function",
+            "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
+          );
+        }
         if (!vivo) return;
 
-        if (!window.Hands || !window.LibrasAlphabetRecognizer) {
+        if (!window.Hands || (reconhecer && !window.LibrasAlphabetRecognizer)) {
           throw new Error("Rastreamento de mão indisponível.");
         }
 
@@ -182,23 +258,106 @@ export function useLibras(
           minTrackingConfidence: 0.75,
         });
 
-        const rec = new window.LibrasAlphabetRecognizer();
+        const rec = reconhecer && window.LibrasAlphabetRecognizer
+          ? new window.LibrasAlphabetRecognizer()
+          : null;
         recRef.current = rec;
+        if (rec) {
+          void statusModelo()
+            .then((modelo) => {
+              if (vivo) modeloBackendAtivoRef.current = modelo.ready;
+            })
+            .catch(() => {
+              modeloBackendAtivoRef.current = false;
+            });
+        }
 
         hands.onResults((r) => {
           if (!vivo) return;
           const pontos = r.multiHandLandmarks?.[0] ?? null;
           desenhar(pontos);
+          quadroRef.current = pontos
+            ? {
+                landmarks: pontos.map((p) => ({ x: p.x, y: p.y, z: p.z ?? 0 })),
+                capturadoEm: performance.now(),
+              }
+            : null;
+          setMaoDetectada(Boolean(pontos));
 
           if (!pontos) {
-            rec.resetTracking();
+            rec?.resetTracking();
+            bufferBackendRef.current = [];
+            predicaoBackendRef.current = null;
             setLetra(null);
             setEmMovimento(false);
             liberadoRef.current = true; // mão saiu: libera repetir a letra
             return;
           }
 
-          const saida = rec.process(pontos, performance.now());
+          // A tela de treinamento precisa apenas dos landmarks crus. Evitar a
+          // classificação aqui reduz trabalho e re-renderizações no celular.
+          if (!rec) return;
+
+          const agora = performance.now();
+
+          // O modelo treinado no backend complementa as regras geométricas
+          // locais. A cadência e a janela de estabilidade vêm do fluxo HTML:
+          // no máximo uma chamada por 135 ms e quatro votos em sete quadros.
+          if (
+            modeloBackendAtivoRef.current &&
+            !backendOcupadoRef.current &&
+            agora - backendSolicitadoEmRef.current >= 135
+          ) {
+            backendOcupadoRef.current = true;
+            backendSolicitadoEmRef.current = agora;
+            void inferirLandmarks(pontos)
+              .then((predicao) => {
+                if (!vivo) return;
+                if (predicao.unknown || !predicao.letter) {
+                  bufferBackendRef.current = [];
+                  predicaoBackendRef.current = null;
+                  return;
+                }
+
+                const recebida = {
+                  letter: predicao.letter,
+                  confidence: predicao.confidence,
+                  recebidaEm: performance.now(),
+                };
+                const buffer = [...bufferBackendRef.current, recebida].slice(-7);
+                bufferBackendRef.current = buffer;
+                const iguais = buffer.filter((item) => item.letter === recebida.letter);
+                if (iguais.length >= 4) {
+                  predicaoBackendRef.current = {
+                    letter: recebida.letter,
+                    confidence:
+                      iguais.reduce((soma, item) => soma + item.confidence, 0) / iguais.length,
+                    recebidaEm: recebida.recebidaEm,
+                  };
+                }
+              })
+              .catch(() => {
+                // A classificação local continua funcionando sem rede.
+              })
+              .finally(() => {
+                backendOcupadoRef.current = false;
+              });
+          }
+
+          const local = rec.process(pontos, agora);
+          const neural = predicaoBackendRef.current;
+          const saida: Resultado =
+            neural &&
+            agora - neural.recebidaEm <= 700 &&
+            !local.dynamic &&
+            !local.motion?.moving
+              ? {
+                  status: "confirmado",
+                  letter: neural.letter,
+                  confidence: neural.confidence,
+                  motion: local.motion,
+                }
+              : local;
           setEmMovimento(Boolean(saida.motion?.moving));
 
           if (saida.status === "confirmado" && saida.letter) {
@@ -248,8 +407,12 @@ export function useLibras(
       if (pausaRef.current) clearTimeout(pausaRef.current);
       handsRef.current?.close?.();
       handsRef.current = null;
+      quadroRef.current = null;
+      modeloBackendAtivoRef.current = false;
+      predicaoBackendRef.current = null;
+      bufferBackendRef.current = [];
     };
-  }, [ativo, desenhar, registrarLetra, videoRef]);
+  }, [ativo, desenhar, reconhecer, registrarLetra, tentativa, videoRef]);
 
   const frase = [...palavras, soletrando].filter(Boolean).join(" ");
 
@@ -276,8 +439,24 @@ export function useLibras(
     speechSynthesis.speak(fala);
   }, [frase]);
 
+  const obterQuadro = useCallback((): QuadroLandmarks | null => {
+    const quadro = quadroRef.current;
+    if (!quadro) return null;
+    return {
+      capturadoEm: quadro.capturadoEm,
+      landmarks: quadro.landmarks.map((p) => ({ ...p })),
+    };
+  }, []);
+
+  const tentarNovamente = useCallback(() => {
+    setErro(null);
+    setTentativa((atual) => atual + 1);
+  }, []);
+
   return {
     canvasRef,
+    maoDetectada,
+    obterQuadro,
     letra,
     confianca,
     emMovimento,
@@ -285,6 +464,7 @@ export function useLibras(
     soletrando,
     carregando,
     erro,
+    tentarNovamente,
     apagarUltima,
     limpar,
     falar,

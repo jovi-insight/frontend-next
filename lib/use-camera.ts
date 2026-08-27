@@ -19,11 +19,11 @@ const RESOLUCOES: Record<Resolucao, { width: number; height: number }> = {
  * getUserMedia exige localhost ou HTTPS; em HTTP comum o navegador nem
  * pergunta, só recusa.
  */
-export function useCamera(ativa = true) {
+export function useCamera(ativa = true, ladoInicial: LadoCamera = "environment") {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [lado, setLado] = useState<LadoCamera>("environment");
+  const [lado, setLado] = useState<LadoCamera>(ladoInicial);
   const [resolucao, setResolucao] = useState<Resolucao>("1080P");
   const [fps, setFps] = useState<Fps>(30);
   const [zoom, setZoom] = useState<number>(1);

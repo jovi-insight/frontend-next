@@ -6,15 +6,60 @@ import { BASE_URL } from "./api";
 
 const URL_PADRAO = BASE_URL;
 const DEZ_MINUTOS = 10 * 60 * 1000;
+const LIMITE_CONSULTA = 30 * 1000;
 
-/** O serviço pode ser customizado via localStorage ou usar a URL padrão do backend. */
+/** O treinamento usa sempre o mesmo backend integrado ao INSIGHT. */
 export function baseUrlLibras(): string {
-  const salva = typeof localStorage !== "undefined" && localStorage.getItem("jovi.libras.ml.url");
-  return String(salva || URL_PADRAO).replace(/\/$/, "");
+  return URL_PADRAO.replace(/\/$/, "");
 }
 
 function apiKeyLibras(): string {
   return (typeof localStorage !== "undefined" && localStorage.getItem("jovi.libras.ml.apiKey")) || "";
+}
+
+async function aguardarNovaTentativa(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Consultas de status podem coincidir com a inicialização do backend. Repetir
+ * uma vez evita exibir o erro cru "Failed to fetch" por uma falha transitória.
+ */
+async function consultarTreinamento<T>(rota: string, mensagemHttp: string): Promise<T> {
+  let ultimoErro: unknown;
+
+  for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+    const controle = new AbortController();
+    const limite = setTimeout(() => controle.abort(), LIMITE_CONSULTA);
+
+    try {
+      const resposta = await fetch(`${baseUrlLibras()}${rota}`, {
+        cache: "no-store",
+        signal: controle.signal,
+      });
+      if (!resposta.ok) {
+        const corpo = await resposta.json().catch(() => ({}));
+        const detalhe = typeof corpo.detail === "string" ? corpo.detail : null;
+        const erroHttp = new Error(detalhe || `${mensagemHttp} (HTTP ${resposta.status})`);
+        erroHttp.name = "RespostaHttpError";
+        throw erroHttp;
+      }
+      return await resposta.json();
+    } catch (erro) {
+      ultimoErro = erro;
+      if (tentativa === 0) await aguardarNovaTentativa(700);
+    } finally {
+      clearTimeout(limite);
+    }
+  }
+
+  if ((ultimoErro as Error | undefined)?.name === "AbortError") {
+    throw new Error("O backend do INSIGHT demorou para responder. Tente novamente.");
+  }
+  if (ultimoErro instanceof Error && ultimoErro.name === "RespostaHttpError") {
+    throw ultimoErro;
+  }
+  throw new Error("Não foi possível conectar ao backend do INSIGHT. Verifique sua conexão e tente novamente.");
 }
 
 export type RespostaTranscricao = {
@@ -107,9 +152,7 @@ export async function statusModelo(): Promise<{
   };
   message?: string;
 }> {
-  const resposta = await fetch(`${baseUrlLibras()}/v1/model`);
-  if (!resposta.ok) throw new Error("Falha ao consultar modelo de Libras");
-  return await resposta.json();
+  return consultarTreinamento("/v1/model", "Falha ao consultar modelo de Libras");
 }
 
 export type ResumoDataset = {
@@ -121,9 +164,7 @@ export type ResumoDataset = {
 
 /** GET /v1/dataset — resumo do dataset de amostras coletadas */
 export async function obterResumoDataset(): Promise<ResumoDataset> {
-  const resposta = await fetch(`${baseUrlLibras()}/v1/dataset`);
-  if (!resposta.ok) throw new Error("Falha ao consultar dataset de Libras");
-  return await resposta.json();
+  return consultarTreinamento("/v1/dataset", "Falha ao consultar dataset de Libras");
 }
 
 /** POST /v1/samples/batch — salva amostras de landmarks para uma letra */
@@ -203,9 +244,10 @@ export async function iniciarTreinoModelo(
 
 /** GET /v1/train/{jobId} — consulta o status do job de treino */
 export async function consultarJobTreino(jobId: string): Promise<StatusJobTreino> {
-  const resposta = await fetch(`${baseUrlLibras()}/v1/train/${encodeURIComponent(jobId)}`);
-  if (!resposta.ok) throw new Error("Falha ao consultar treinamento");
-  return await resposta.json();
+  return consultarTreinamento(
+    `/v1/train/${encodeURIComponent(jobId)}`,
+    "Falha ao consultar treinamento",
+  );
 }
 
 /** Acompanha o treinamento até a conclusão (retorna o job finalizado) */
@@ -223,5 +265,3 @@ export async function aguardarTreino(
   }
   throw new Error("O treinamento demorou mais do que o esperado. Consulte o backend.");
 }
-
-

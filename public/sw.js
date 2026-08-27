@@ -3,12 +3,15 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v3-camera-video";
+const CACHE_NAME = "insight-pwa-v6-libras-retry";
+const IMAGE_CACHE_NAME = "insight-images-v1";
+const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
 const ASSETS_TO_CACHE = [
   "/",
   "/library",
   "/folders",
   "/settings",
+  "/libras-training",
   "/translate",
   "/manifest.json",
   "/icons/icon-192x192.png",
@@ -29,7 +32,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (!VALID_CACHE_NAMES.has(key)) {
             return caches.delete(key);
           }
         })
@@ -40,6 +43,27 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  if (event.request.method === "GET" && event.request.destination === "image") {
+    const cachePromise = caches.open(IMAGE_CACHE_NAME);
+    const networkPromise = cachePromise.then((cache) =>
+      fetch(event.request).then((response) => {
+        if (response.ok || response.type === "opaque") {
+          cache.put(event.request, response.clone()).catch(() => {});
+        }
+        return response;
+      })
+    );
+
+    // Mostra imediatamente o que já foi visto e atualiza em segundo plano.
+    event.waitUntil(networkPromise.then(() => undefined).catch(() => undefined));
+    event.respondWith(
+      cachePromise
+        .then((cache) => cache.match(event.request))
+        .then((cached) => cached || networkPromise)
+    );
+    return;
+  }
+
   // Ignora requisições de API e métodos não-GET para não interferir na comunicação com o backend
   if (
     event.request.method !== "GET" ||
