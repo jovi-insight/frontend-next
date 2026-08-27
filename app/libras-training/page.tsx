@@ -81,6 +81,7 @@ function TreinamentoLibrasConteudo() {
     obterQuadro,
     carregando: rastreamentoCarregando,
     erro: rastreamentoErro,
+    tentarNovamente: tentarRastreamentoNovamente,
   } = useLibras(videoRef, true, false);
   const [letra, setLetra] = useState("F");
   const [dataset, setDataset] = useState<ResumoDataset | null>(null);
@@ -228,7 +229,7 @@ function TreinamentoLibrasConteudo() {
       if (execucaoRef.current !== minhaExecucao) return;
       setDataset(resposta.dataset);
       setMensagemColeta(
-        `${resposta.accepted} amostras da letra ${letra} foram salvas. Escolha outra letra ou treine a rede.`,
+        `${resposta.accepted} amostras da letra ${letra} foram salvas. Você pode repetir essa letra ou escolher outra.`,
       );
       avisar(`Letra ${letra} adicionada ao treinamento.`, "sucesso");
     } catch (erro) {
@@ -292,6 +293,9 @@ function TreinamentoLibrasConteudo() {
               Mostre uma letra por vez. O app captura somente os 21 pontos da mão — não envia
               sua imagem — e usa as amostras para treinar o reconhecimento.
             </p>
+            <p className="treino-libras-repetir">
+              Você pode treinar a mesma letra mais de uma vez. Cada rodada adiciona 45 novas amostras.
+            </p>
           </div>
         </section>
 
@@ -343,6 +347,11 @@ function TreinamentoLibrasConteudo() {
                 <div className="treino-camera-erro" role="alert">
                   <span className="material-symbols-outlined" aria-hidden="true">videocam_off</span>
                   {cameraErro || rastreamentoErro}
+                  {rastreamentoErro && !cameraErro && (
+                    <button type="button" onClick={tentarRastreamentoNovamente}>
+                      Tentar novamente
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -6,7 +6,9 @@ import { inferirLandmarks, statusModelo } from "./libras-ml";
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
 const PAUSA_DE_PALAVRA = 2000;
 
-const CDN_MEDIAPIPE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands";
+const VERSAO_MEDIAPIPE = "0.4.1675469240";
+const CDN_MEDIAPIPE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${VERSAO_MEDIAPIPE}`;
+const scriptsCarregando = new Map<string, Promise<void>>();
 
 export type Landmark = { x: number; y: number; z: number };
 
@@ -67,16 +69,58 @@ function temWebGL(): boolean {
   }
 }
 
-function carregarScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+function removerScript(src: string) {
+  document.querySelectorAll<HTMLScriptElement>(`script[src="${src}"]`).forEach((tag) => tag.remove());
+}
+
+function carregarScript(src: string, disponivel: () => boolean): Promise<void> {
+  if (disponivel()) return Promise.resolve();
+
+  const pendente = scriptsCarregando.get(src);
+  if (pendente) return pendente;
+
+  // Uma tag que sobrou de uma navegação anterior pode ter falhado ou ainda
+  // estar carregando. A Promise compartilhada abaixo passa a ser a fonte da
+  // verdade para todas as montagens do hook.
+  removerScript(src);
+
+  const carregamentoBruto = new Promise<void>((resolve, reject) => {
     const tag = document.createElement("script");
     tag.src = src;
     tag.async = true;
-    tag.onload = () => resolve();
+    tag.dataset.insightDependencia = "carregando";
+    tag.onload = () => {
+      tag.dataset.insightDependencia = "carregada";
+      if (disponivel()) resolve();
+      else reject(new Error(`A dependência ${src} carregou sem ficar disponível.`));
+    };
     tag.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
     document.head.appendChild(tag);
   });
+
+  const carregamento = carregamentoBruto.finally(() => scriptsCarregando.delete(src));
+  scriptsCarregando.set(src, carregamento);
+  return carregamento;
+}
+
+async function carregarScriptComRetry(
+  src: string,
+  disponivel: () => boolean,
+  mensagem: string,
+): Promise<void> {
+  let ultimoErro: unknown;
+  for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+    try {
+      await carregarScript(src, disponivel);
+      return;
+    } catch (erro) {
+      ultimoErro = erro;
+      removerScript(src);
+      if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+  }
+  console.error(ultimoErro);
+  throw new Error(mensagem);
 }
 
 /**
@@ -100,6 +144,7 @@ export function useLibras(
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [maoDetectada, setMaoDetectada] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handsRef = useRef<Hands | null>(null);
@@ -187,8 +232,18 @@ export function useLibras(
             "Este navegador não tem aceleração gráfica (WebGL), e o rastreamento da mão travaria a página. Ative a aceleração por hardware nas configurações do navegador.",
           );
         }
-        await carregarScript(`${CDN_MEDIAPIPE}/hands.min.js`);
-        if (reconhecer) await carregarScript("/vendor/libras-recognizer.js");
+        await carregarScriptComRetry(
+          `${CDN_MEDIAPIPE}/hands.min.js`,
+          () => typeof window.Hands === "function",
+          "Não foi possível carregar o rastreamento da mão. Verifique sua conexão e tente novamente.",
+        );
+        if (reconhecer) {
+          await carregarScriptComRetry(
+            "/vendor/libras-recognizer.js",
+            () => typeof window.LibrasAlphabetRecognizer === "function",
+            "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
+          );
+        }
         if (!vivo) return;
 
         if (!window.Hands || (reconhecer && !window.LibrasAlphabetRecognizer)) {
@@ -357,7 +412,7 @@ export function useLibras(
       predicaoBackendRef.current = null;
       bufferBackendRef.current = [];
     };
-  }, [ativo, desenhar, reconhecer, registrarLetra, videoRef]);
+  }, [ativo, desenhar, reconhecer, registrarLetra, tentativa, videoRef]);
 
   const frase = [...palavras, soletrando].filter(Boolean).join(" ");
 
@@ -393,6 +448,11 @@ export function useLibras(
     };
   }, []);
 
+  const tentarNovamente = useCallback(() => {
+    setErro(null);
+    setTentativa((atual) => atual + 1);
+  }, []);
+
   return {
     canvasRef,
     maoDetectada,
@@ -404,6 +464,7 @@ export function useLibras(
     soletrando,
     carregando,
     erro,
+    tentarNovamente,
     apagarUltima,
     limpar,
     falar,

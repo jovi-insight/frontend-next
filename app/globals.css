@@ -2097,11 +2097,17 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   letter-spacing: -0.8px;
 }
 
-.treino-libras-intro div > p:last-child {
+.treino-libras-intro div > p:not(.treino-libras-sobretitulo) {
   max-width: 700px;
   color: var(--on-surface-variant);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.treino-libras-intro .treino-libras-repetir {
+  margin-top: 7px;
+  color: #9cd0ce;
+  font-weight: 700;
 }
 
 .treino-status-grid {
@@ -2248,6 +2254,18 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   line-height: 1.5;
   text-align: center;
   background: rgba(0, 0, 0, 0.86);
+}
+
+.treino-camera-erro button {
+  min-height: 40px;
+  padding: 9px 16px;
+  color: var(--on-primary);
+  font: inherit;
+  font-weight: 800;
+  background: var(--primary);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
 }
 
 .treino-camera-rodape {
