@@ -58,6 +58,13 @@ function LibraryConteudo() {
     ? dados.itens.filter((d) => descartados.has(d.id)).length
     : 0;
 
+  // As primeiras miniaturas precisam aparecer imediatamente. As demais seguem
+  // em lazy loading para a galeria não baixar dezenas de MB de uma vez.
+  const imagensPrioritarias = useMemo(
+    () => new Set((dados?.itens ?? []).slice(0, 12).map((item) => item.id)),
+    [dados],
+  );
+
   function alternarMarca(id: string) {
     setMarcados((antes) => {
       const novo = new Set(antes);
@@ -184,6 +191,7 @@ function LibraryConteudo() {
                   doc={doc}
                   selecionando={selecionando}
                   marcado={marcados.has(doc.id)}
+                  prioritaria={imagensPrioritarias.has(doc.id)}
                   onMarcar={() => alternarMarca(doc.id)}
                 />
               ))}
@@ -201,23 +209,71 @@ function Miniatura({
   doc,
   selecionando,
   marcado,
+  prioritaria,
   onMarcar,
 }: {
   doc: Conteudo;
   selecionando: boolean;
   marcado: boolean;
+  prioritaria: boolean;
   onMarcar: () => void;
 }) {
-  const thumb = doc.imagem_url || doc.imagens?.[0]?.url_storage;
+  const thumbBruta = doc.imagem_url || doc.imagens?.[0]?.url_storage;
+  const thumb = thumbBruta?.replace(/\?$/, "") || null;
+  const [tentativa, setTentativa] = useState(0);
+  const [imagemPronta, setImagemPronta] = useState(false);
+  const [imagemFalhou, setImagemFalhou] = useState(false);
+
+  useEffect(() => {
+    if (!imagemFalhou || tentativa >= 2) return;
+    const timer = window.setTimeout(() => {
+      setTentativa((atual) => atual + 1);
+      setImagemFalhou(false);
+    }, 500 * (tentativa + 1));
+    return () => window.clearTimeout(timer);
+  }, [imagemFalhou, tentativa]);
+
+  const thumbComTentativa =
+    thumb && tentativa > 0
+      ? `${thumb}${thumb.includes("?") ? "&" : "?"}insight_retry=${tentativa}`
+      : thumb;
   const data = doc.ultima_atualizacao
     ? new Date(doc.ultima_atualizacao).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
     : "";
 
   const miolo = (
     <>
-      {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumb} alt="" loading="lazy" />
+      {thumbComTentativa ? (
+        <>
+          {!imagemPronta && tentativa < 2 && (
+            <span className="album-image-loading" aria-hidden="true" />
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={tentativa}
+            src={thumbComTentativa}
+            alt=""
+            loading={prioritaria ? "eager" : "lazy"}
+            fetchPriority={prioritaria ? "high" : "auto"}
+            decoding="async"
+            referrerPolicy="no-referrer"
+            className={imagemPronta ? "is-loaded" : "is-loading"}
+            onLoad={() => {
+              setImagemPronta(true);
+              setImagemFalhou(false);
+            }}
+            onError={() => {
+              setImagemPronta(false);
+              setImagemFalhou(true);
+            }}
+          />
+          {imagemFalhou && tentativa >= 2 && (
+            <span className="album-image-error" title="Não foi possível carregar a miniatura">
+              <span className="material-symbols-outlined">broken_image</span>
+              <small>Toque para abrir</small>
+            </span>
+          )}
+        </>
       ) : (
         <span className="material-symbols-outlined" style={{ fontSize: 28, opacity: 0.25 }}>
           description
