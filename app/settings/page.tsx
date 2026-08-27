@@ -93,8 +93,8 @@ function SettingsConteudo() {
         </p>
 
         <Link href="/libras-training" className="ajustes-treino-libras">
-          <span className="ajustes-treino-libras-icone material-symbols-outlined" aria-hidden="true">
-            model_training
+          <span className="ajustes-treino-libras-icone" aria-hidden="true">
+            <span className="material-symbols-outlined">sign_language</span>
           </span>
           <span>
             <strong>Treinar modelo de Libras</strong>
