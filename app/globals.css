@@ -237,11 +237,57 @@
 
 /* Flash de tela: para aparelhos sem lanterna acessível pela web. */
 .clarao-flash {
-  position: absolute;
+  position: fixed;
   inset: 0;
   background: #fff;
+  z-index: 99999;
   pointer-events: none;
-  transition: opacity 0.15s;
+  transition: opacity 0.1s ease-out;
+}
+
+/* Pílulas de Zoom da Câmera */
+.camera-zoom-pills {
+  position: absolute;
+  bottom: 168px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 100px;
+  padding: 4px 6px;
+  z-index: 60;
+}
+
+.zoom-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.zoom-pill:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.zoom-pill.active {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 0 12px rgba(156, 208, 206, 0.4);
+  transform: scale(1.08);
 }
 
 .drawer-nota {

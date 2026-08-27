@@ -26,6 +26,8 @@ export function useCamera(ativa = true) {
   const [lado, setLado] = useState<LadoCamera>("environment");
   const [resolucao, setResolucao] = useState<Resolucao>("1080P");
   const [fps, setFps] = useState<Fps>(30);
+  const [zoom, setZoom] = useState<number>(1);
+  const [capacidadesZoom, setCapacidadesZoom] = useState<{ min: number; max: number; step: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [pronta, setPronta] = useState(false);
   const [temLanterna, setTemLanterna] = useState(false);
@@ -41,6 +43,7 @@ export function useCamera(ativa = true) {
     async function abrir() {
       setPronta(false);
       setErro(null);
+      setZoom(1);
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error("Este navegador não expõe a câmera.");
@@ -69,8 +72,23 @@ export function useCamera(ativa = true) {
             ? { largura: conf.width ?? 0, altura: conf.height ?? 0, fps: Math.round(conf.frameRate ?? 0) }
             : null,
         );
-        const capacidades = track?.getCapabilities?.() as { torch?: boolean } | undefined;
+
+        // Inspeciona capacidades de lanterna e zoom
+        const capacidades = track?.getCapabilities?.() as
+          | { torch?: boolean; zoom?: { min: number; max: number; step: number } }
+          | undefined;
+
         setTemLanterna(Boolean(capacidades?.torch));
+        if (capacidades?.zoom) {
+          setCapacidadesZoom({
+            min: capacidades.zoom.min || 1,
+            max: capacidades.zoom.max || 5,
+            step: capacidades.zoom.step || 0.1,
+          });
+        } else {
+          setCapacidadesZoom({ min: 1, max: 5, step: 0.1 });
+        }
+
         setPronta(true);
       } catch (e) {
         if (cancelado) return;
@@ -102,14 +120,30 @@ export function useCamera(ativa = true) {
     [],
   );
 
-  /** Lanterna de verdade, via constraint `torch`. Só a traseira costuma ter. */
+  /** Ajusta o zoom óptico/digital da câmera com fallback via CSS/Canvas */
+  const ajustarZoom = useCallback(async (novoZoom: number) => {
+    const valor = Math.max(1, Math.min(5, Number(novoZoom) || 1));
+    setZoom(valor);
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      try {
+        await track.applyConstraints({
+          advanced: [{ zoom: valor } as MediaTrackConstraintSet],
+        });
+      } catch {
+        // Fallback digital silencioso
+      }
+    }
+  }, []);
+
+  /** Lanterna de verdade, via constraint `torch`. */
   const alternarLanterna = useCallback(async (ligar: boolean) => {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return false;
-    const capacidades = track.getCapabilities?.() as { torch?: boolean } | undefined;
-    if (!capacidades?.torch) return false;
     try {
-      await track.applyConstraints({ advanced: [{ torch: ligar } as MediaTrackConstraintSet] });
+      await track.applyConstraints({
+        advanced: [{ torch: ligar } as MediaTrackConstraintSet],
+      });
       return true;
     } catch {
       return false;
@@ -121,20 +155,31 @@ export function useCamera(ativa = true) {
 
   /** Quadro atual como JPEG. `largura` 0 mantém a resolução nativa. */
   const capturar = useCallback(
-    (largura = 0, qualidade = 0.9, filtro = ""): string | null => {
+    (largura = 0, qualidade = 0.9, filtro = "", zoomAtual = 1): string | null => {
       const video = videoRef.current;
       if (!video || !video.videoWidth) return null;
 
+      const z = Math.max(1, zoomAtual || 1);
       const escala = largura ? largura / video.videoWidth : 1;
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(video.videoWidth * escala);
       canvas.height = Math.round(video.videoHeight * escala);
       const ctx = canvas.getContext("2d");
       if (!ctx) return null;
-      // O realce do viewfinder é um filtro CSS; repeti-lo aqui faz a foto
-      // salva sair igual ao que o aluno viu na tela.
+
       if (filtro) ctx.filter = filtro;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      if (z > 1) {
+        // Recorte central proporcional ao zoom aplicado na tela
+        const sw = video.videoWidth / z;
+        const sh = video.videoHeight / z;
+        const sx = (video.videoWidth - sw) / 2;
+        const sy = (video.videoHeight - sh) / 2;
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+
       return canvas.toDataURL("image/jpeg", qualidade);
     },
     [],
@@ -148,6 +193,9 @@ export function useCamera(ativa = true) {
     setResolucao,
     fps,
     setFps,
+    zoom,
+    capacidadesZoom,
+    ajustarZoom,
     real,
     temLanterna,
     alternarLanterna,

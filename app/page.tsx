@@ -107,10 +107,41 @@ function CameraConteudo() {
 
   const filtroAtual = ajustes.realce ? FILTRO_REALCE : "";
 
+  // Suporte a gesto de pinça (pinch-to-zoom) no celular
+  const toquePincaRef = useRef<{ dist: number; zoomInicial: number } | null>(null);
+
+  function aoTocarInicio(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY,
+      );
+      toquePincaRef.current = { dist, zoomInicial: camera.zoom };
+    }
+  }
+
+  function aoTocarMover(e: React.TouchEvent) {
+    if (e.touches.length === 2 && toquePincaRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY,
+      );
+      if (toquePincaRef.current.dist > 0) {
+        const fator = dist / toquePincaRef.current.dist;
+        const novoZoom = Math.min(5, Math.max(1, toquePincaRef.current.zoomInicial * fator));
+        camera.ajustarZoom(Number(novoZoom.toFixed(1)));
+      }
+    }
+  }
+
+  function aoTocarFim() {
+    toquePincaRef.current = null;
+  }
+
   /** Captura de fato: já passou o temporizador e o flash. */
   const disparar = useCallback(async () => {
-    const imagem = camera.capturar(0, 0.92, filtroAtual);
-    const miniatura = camera.capturar(320, 0.6, filtroAtual);
+    const imagem = camera.capturar(0, 0.92, filtroAtual, camera.zoom);
+    const miniatura = camera.capturar(320, 0.6, filtroAtual, camera.zoom);
     if (!imagem) {
       avisar("A câmera ainda não está pronta.", "info");
       return;
@@ -129,19 +160,24 @@ function CameraConteudo() {
     setPaginas((antes) => [...antes, criarPagina(imagem, miniatura ?? imagem)]);
   }, [camera, filtroAtual, modo]);
 
-  /** Flash: lanterna quando o aparelho tem, clarão de tela quando não tem. */
+  /** Flash: lanterna física e clarão de tela sincronizados. */
   const comFlash = useCallback(
     async (acao: () => Promise<void>) => {
       const querFlash = flash === "on" || flash === "auto";
       if (!querFlash) return acao();
 
-      const ligou = camera.temLanterna && (await camera.alternarLanterna(true));
-      if (!ligou) setClarao(true);
+      // Tenta acionar a lanterna de hardware
+      const ligou = await camera.alternarLanterna(true);
+      // Sempre ativa o clarão visual de tela cheia para iluminação máxima
+      setClarao(true);
       // Um instante para a cena receber a luz antes do quadro ser lido.
       await new Promise((r) => setTimeout(r, 220));
-      await acao();
-      if (ligou) await camera.alternarLanterna(false);
-      else setClarao(false);
+      try {
+        await acao();
+      } finally {
+        if (ligou) await camera.alternarLanterna(false);
+        setTimeout(() => setClarao(false), 150);
+      }
     },
     [camera, flash],
   );
@@ -437,14 +473,25 @@ function CameraConteudo() {
         />
       )}
 
-      <main className="camera-main" onClick={() => gaveta && setGaveta(null)}>
+      <main
+        className="camera-main"
+        onClick={() => gaveta && setGaveta(null)}
+        onTouchStart={aoTocarInicio}
+        onTouchMove={aoTocarMover}
+        onTouchEnd={aoTocarFim}
+      >
         <video
           ref={camera.videoRef}
           autoPlay
           playsInline
           muted
           className="camera-video"
-          style={{ filter: filtroAtual || undefined }}
+          style={{
+            filter: filtroAtual || undefined,
+            transform: camera.zoom > 1 ? `scale(${camera.zoom})` : undefined,
+            transformOrigin: "center center",
+            transition: "transform 0.1s ease-out",
+          }}
         />
 
         {modo === "LIBRAS" && (
@@ -618,6 +665,26 @@ function CameraConteudo() {
           </button>
         ))}
       </div>
+
+      {/* Pílulas rápidas de Zoom (1x / 2x / 3x / 5x) */}
+      {camera.pronta && (
+        <div className="camera-zoom-pills" role="toolbar" aria-label="Controle de Zoom">
+          {[1, 2, 3, 5].map((z) => (
+            <button
+              key={z}
+              type="button"
+              className={`zoom-pill${Math.round(camera.zoom) === z ? " active" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                camera.ajustarZoom(z);
+              }}
+              aria-label={`Zoom ${z} vezes`}
+            >
+              {z}x
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="camera-shutter-control">
         <Link href="/library" className="thumbnail-preview" aria-label="Abrir biblioteca">
