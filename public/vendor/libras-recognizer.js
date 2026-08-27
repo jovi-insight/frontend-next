@@ -15,7 +15,7 @@
     const STATIC_LETTERS = [
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
         'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-        'T', 'U', 'V', 'W', 'X', 'Y'
+        'T', 'U', 'V', 'W', 'Y'
     ];
     const DYNAMIC_LETTERS = ['Ç', 'J', 'Z'];
     const STORAGE_VERSION = 5;
@@ -118,6 +118,7 @@
                 const model = JSON.parse(stored);
                 const valid = model.version === NEURAL_STORAGE_VERSION
                     && Array.isArray(model.classes) && model.classes.length >= 2
+                    && model.classes.every((letter) => STATIC_LETTERS.includes(letter))
                     && Number.isInteger(model.inputSize) && Number.isInteger(model.hiddenSize)
                     && Array.isArray(model.mean) && model.mean.length === model.inputSize
                     && Array.isArray(model.std) && model.std.length === model.inputSize
@@ -465,6 +466,7 @@
                 if (!stored) return {};
                 const parsed = JSON.parse(stored);
                 if (parsed.version !== STORAGE_VERSION || typeof parsed.samples !== 'object') return {};
+                delete parsed.samples.X;
                 return parsed.samples;
             } catch (error) {
                 console.warn('Não foi possível carregar a calibração de Libras:', error);
@@ -766,7 +768,6 @@
             const crossed = ((n[8].y - n[12].y) * (n[5].y - n[9].y)) < 0 ? 1 : 0;
             const thumbAtIndexSide = clamp((n[5].y - n[4].y + 0.08) / 0.58);
             const thumbAcrossPalm = clamp((n[4].y - n[5].y + 0.05) / 0.72);
-            const indexHook = clamp(1 - Math.abs(e[1] - 0.38) / 0.35);
             const fingertipCluster = average([
                 closeScore(d.thumbIndex, 0.55),
                 closeScore(d.thumbMiddle, 0.62),
@@ -801,7 +802,6 @@
             add('H', [e[0], 1, 1, 0.18, 0.18], [twoTogether, palmEdgeOn, 1 - crossed]);
 
             add('W', [0.2, 1, 1, 1, 0.05], [farScore(d.indexPinky, 1.15), palmUp]);
-            add('X', [0.4, 0.38, 0.05, 0.05, 0.05], [indexHook, palmHorizontal, 1 - palmDown]);
             add('Q', [0.35, 0.75, 0.08, 0.08, 0.08], [palmDown, thumbIndexTouch], 0.015);
 
             add('O', [0.45, 0.45, 0.45, 0.45, 0.4], [fingertipCluster, closeScore(d.thumbPinky, 0.82)]);

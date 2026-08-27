@@ -5,6 +5,7 @@ import { inferirLandmarks, statusModelo } from "./libras-ml";
 
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
 const PAUSA_DE_PALAVRA = 2000;
+const LETRAS_BLOQUEADAS = new Set(["X"]);
 
 const VERSAO_MEDIAPIPE = "0.4.1675469240";
 const CDN_MEDIAPIPE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${VERSAO_MEDIAPIPE}`;
@@ -208,6 +209,7 @@ export function useLibras(
 
   /** Uma letra confirmada só entra de novo depois que a mão sai da pose. */
   const registrarLetra = useCallback((nova: string) => {
+    if (LETRAS_BLOQUEADAS.has(nova.toUpperCase())) return;
     if (nova === ultimaLetraRef.current && !liberadoRef.current) return;
     ultimaLetraRef.current = nova;
     liberadoRef.current = false;
@@ -242,7 +244,7 @@ export function useLibras(
         );
         if (reconhecer || calibrar) {
           await carregarScriptComRetry(
-            "/vendor/libras-recognizer.js",
+            "/vendor/libras-recognizer.js?v=remove-x-20260827",
             () => typeof window.LibrasAlphabetRecognizer === "function",
             "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
           );
@@ -316,7 +318,11 @@ export function useLibras(
             void inferirLandmarks(pontos)
               .then((predicao) => {
                 if (!vivo) return;
-                if (predicao.unknown || !predicao.letter) {
+                if (
+                  predicao.unknown ||
+                  !predicao.letter ||
+                  LETRAS_BLOQUEADAS.has(predicao.letter.toUpperCase())
+                ) {
                   bufferBackendRef.current = [];
                   predicaoBackendRef.current = null;
                   return;
@@ -349,7 +355,7 @@ export function useLibras(
 
           const local = rec.process(pontos, agora);
           const neural = predicaoBackendRef.current;
-          const saida: Resultado =
+          const saidaBruta: Resultado =
             neural &&
             agora - neural.recebidaEm <= 700 &&
             !local.dynamic &&
@@ -361,6 +367,12 @@ export function useLibras(
                   motion: local.motion,
                 }
               : local;
+          // Defesa final para aparelhos que ainda estejam com pesos ou o
+          // reconhecedor antigo na memoria do PWA.
+          const saida: Resultado =
+            saidaBruta.letter && LETRAS_BLOQUEADAS.has(saidaBruta.letter.toUpperCase())
+              ? { status: "incerto", motion: saidaBruta.motion }
+              : saidaBruta;
           setEmMovimento(Boolean(saida.motion?.moving));
 
           if (saida.status === "confirmado" && saida.letter) {

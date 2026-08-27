@@ -136,7 +136,18 @@ export async function inferirLandmarks(
     body: JSON.stringify({ landmarks }),
   });
   if (!resposta.ok) throw new Error("Falha na inferência neural de Libras");
-  return await resposta.json();
+  const predicao: PredicaoLibras = await resposta.json();
+  if (predicao.letter?.toUpperCase() === "X" || predicao.candidate?.toUpperCase() === "X") {
+    return {
+      ...predicao,
+      letter: null,
+      candidate: undefined,
+      unknown: true,
+      confidence: 0,
+      reason: "disabled-letter",
+    };
+  }
+  return predicao;
 }
 
 /** GET /v1/model — status do modelo neural publicado */
@@ -181,6 +192,9 @@ export async function enviarAmostrasLetra(
   dataset: ResumoDataset;
   auto_training?: StatusAtualizacaoAutomatica;
 }> {
+  if (letra.trim().toUpperCase() === "X") {
+    throw new Error("A letra X foi desativada neste trabalho.");
+  }
   const samples = amostrasLandmarks.map((landmarks, index) => ({
     sample_id: `${sessionId}-${index}`,
     user_id: userId,

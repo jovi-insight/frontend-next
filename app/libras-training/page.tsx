@@ -17,7 +17,7 @@ import {
 import { useCamera } from "@/lib/use-camera";
 import { useLibras, type Landmark } from "@/lib/use-libras";
 
-const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVWXY".split("");
+const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVWY".split("");
 const ALVO_AMOSTRAS = 45;
 const MINIMO_POR_LETRA = 20;
 
@@ -32,7 +32,6 @@ const DICAS: Partial<Record<string, string>> = {
   N: "Aponte indicador e médio juntos para baixo; recolha os demais.",
   P: "Aponte indicador e médio para o lado e mantenha os demais recolhidos.",
   V: "Mostre a palma e abra indicador e médio em V.",
-  X: "Dobre o indicador em gancho e oriente a mão lateralmente.",
   Y: "Abra polegar e mínimo e recolha os três dedos centrais.",
 };
 
@@ -306,7 +305,7 @@ function TreinamentoLibrasConteudo() {
           <article className="treino-status-card">
             <span className="material-symbols-outlined" aria-hidden="true">spellcheck</span>
             <div>
-              <strong>{carregandoStatus ? "—" : `${letrasProntas.length}/24`}</strong>
+              <strong>{carregandoStatus ? "—" : `${letrasProntas.length}/${LETRAS_ESTATICAS.length}`}</strong>
               <small>Letras preparadas</small>
             </div>
           </article>
