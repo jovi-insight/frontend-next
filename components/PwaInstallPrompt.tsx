@@ -85,20 +85,19 @@ export default function PwaInstallPrompt() {
       aria-label="Recomendação de Instalação do App"
       style={{
         position: "fixed",
-        bottom: 84, // Fica acima da barra inferior de navegação
+        top: "calc(16px + env(safe-area-inset-top, 0px))",
         left: "50%",
         transform: "translateX(-50%)",
         width: "calc(100% - 32px)",
         maxWidth: 440,
-        zIndex: 9999,
-        background: "rgba(28, 28, 30, 0.95)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(156, 208, 206, 0.3)",
+        zIndex: 10000,
+        background: "rgba(24, 24, 28, 0.94)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        border: "1px solid rgba(156, 208, 206, 0.35)",
         borderRadius: 20,
         padding: "16px 18px",
-        boxShadow: "0 12px 36px rgba(0,0,0,0.6), 0 0 20px rgba(156, 208, 206, 0.15)",
-        animation: "slideUp 0.3s ease-out",
+        boxShadow: "0 16px 40px rgba(0,0,0,0.65), 0 0 24px rgba(94, 92, 230, 0.2)",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
@@ -107,10 +106,10 @@ export default function PwaInstallPrompt() {
           src="/icons/icon-192x192.png"
           alt="Ícone do JOVI"
           style={{
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
             flexShrink: 0,
           }}
         />
@@ -145,26 +144,26 @@ export default function PwaInstallPrompt() {
               fontSize: 12,
               color: "var(--on-surface-variant)",
               marginTop: 3,
-              marginBottom: 10,
+              marginBottom: 12,
               lineHeight: 1.4,
             }}
           >
-            Tenha acesso rápido à câmera, resumos inteligentes e modo offline em tela cheia.
+            Acesse a câmera, resumos e cadernos com maior velocidade e em tela cheia.
           </p>
 
           {guiaIos ? (
             <div
               style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "rgba(94, 92, 230, 0.15)",
+                border: "1px solid rgba(156, 208, 206, 0.3)",
                 borderRadius: 10,
-                padding: "8px 10px",
+                padding: "8px 12px",
                 fontSize: 11,
                 lineHeight: 1.5,
                 color: "#9cd0ce",
               }}
             >
-              Toque no botão <strong>Compartilhar</strong> (ícone de envio do Safari) e selecione{" "}
+              Toque no ícone de <strong>Compartilhar</strong> no Safari e selecione{" "}
               <strong>&quot;Adicionar à Tela de Início&quot;</strong>.
             </div>
           ) : (
@@ -177,7 +176,7 @@ export default function PwaInstallPrompt() {
                   color: "var(--on-primary)",
                   border: "none",
                   borderRadius: 10,
-                  padding: "8px 14px",
+                  padding: "8px 16px",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",

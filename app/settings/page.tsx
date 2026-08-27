@@ -200,6 +200,46 @@ function SettingsConteudo() {
         <div className="section-header">
           <div className="section-title">
             <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
+            <h2>Aplicativo no Dispositivo (PWA)</h2>
+          </div>
+        </div>
+
+        <div
+          className="card flex items-center justify-between"
+          style={{ marginBottom: 40, flexWrap: "wrap", gap: 16 }}
+        >
+          <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icons/icon-192x192.png"
+              alt="Ícone do JOVI"
+              style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0 }}
+            />
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700 }}>Instalar JOVI</p>
+              <p style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>
+                Funciona como app nativo na tela inicial, em tela cheia e com cache rápido.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="chip chip-primario"
+            onClick={() => {
+              localStorage.removeItem("jovi_pwa_prompt_dismissed");
+              window.location.reload();
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              install_mobile
+            </span>
+            Instalar / Atualizar App
+          </button>
+        </div>
+
+        <div className="section-header">
+          <div className="section-title">
+            <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
             <h2>Sessão</h2>
           </div>
         </div>
