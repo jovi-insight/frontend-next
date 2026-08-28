@@ -221,8 +221,37 @@ export async function criarAula(
  * Backends antigos ignoram o parâmetro e seguem devolvendo 4.
  */
 export async function getRecentes(limite = 100): Promise<Conteudo[]> {
-  const res = await fetch(`${BASE_URL}/dashboard/recentes?limit=${limite}`);
+  const res = await fetch(`${BASE_URL}/dashboard/recentes?limit=${limite}`, {
+    cache: "no-store",
+  });
   return handle(res, "Falha ao carregar recentes");
+}
+
+/** Documentos na lixeira compartilhada pelo backend. */
+export async function getLixeira(): Promise<Conteudo[]> {
+  const res = await fetch(`${BASE_URL}/conteudo/lixeira`, { cache: "no-store" });
+  return handle(res, "Falha ao carregar a lixeira");
+}
+
+/** Soft delete recuperável e sincronizado entre aparelhos. */
+export async function moverConteudoParaLixeira(conteudoId: string): Promise<null> {
+  const res = await fetch(`${BASE_URL}/conteudo/${conteudoId}`, { method: "DELETE" });
+  return handle(res, "Falha ao mover o documento para a lixeira");
+}
+
+export async function restaurarConteudo(conteudoId: string): Promise<Conteudo> {
+  const res = await fetch(`${BASE_URL}/conteudo/${conteudoId}/restaurar`, {
+    method: "POST",
+  });
+  return handle(res, "Falha ao restaurar o documento");
+}
+
+/** Purge definitivo do documento, banco e arquivos do Storage. */
+export async function excluirConteudoPermanentemente(conteudoId: string): Promise<null> {
+  const res = await fetch(`${BASE_URL}/conteudo/${conteudoId}/permanente`, {
+    method: "DELETE",
+  });
+  return handle(res, "Falha ao excluir o documento definitivamente");
 }
 
 // ─── Vídeos do usuário ───────────────────────────────────

@@ -7,11 +7,17 @@ import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
 import Quiz from "@/components/Quiz";
 import VozOndas from "@/components/VozOndas";
-import { getConteudo, gerarResumo, traduzirTexto, isUuid, type Conteudo } from "@/lib/api";
+import {
+  getConteudo,
+  gerarResumo,
+  traduzirTexto,
+  isUuid,
+  moverConteudoParaLixeira,
+  type Conteudo,
+} from "@/lib/api";
 import { useNarracao } from "@/lib/use-narracao";
 import { pontosDeEstudo, termosChave } from "@/lib/estudo";
 import { avisar } from "@/lib/avisos";
-import { CHAVE_LIXEIRA, lerDescartados, descartar } from "@/lib/descartados";
 import { gravarLocalStorage, useLocalStorage } from "@/lib/use-local-storage";
 import { CHAVE_PERFIL, temPerfil } from "@/lib/perfil";
 
@@ -38,8 +44,8 @@ function SummaryConteudo({ id }: { id: string }) {
   const [doc, setDoc] = useState<Conteudo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [gerando, setGerando] = useState(false);
+  const [movendoParaLixeira, setMovendoParaLixeira] = useState(false);
   const idiomaSalvo = useLocalStorage(CHAVE_IDIOMA, "pt");
-  const lixeiraBruta = useLocalStorage(CHAVE_LIXEIRA, "[]");
   const [idioma, setIdioma] = useState(idiomaSalvo);
 
   const router = useRouter();
@@ -91,14 +97,18 @@ function SummaryConteudo({ id }: { id: string }) {
     narracao.parar(); // o áudio em execução está no idioma antigo
   }
 
-  function paraLixeira() {
+  async function paraLixeira() {
     if (!doc) return;
-    // O backend não expõe DELETE de conteúdo: "apagar" é esconder da galeria
-    // deste navegador, e a lixeira da biblioteca devolve quando quiser.
     if (!confirm("Mandar este documento para a lixeira?")) return;
-    descartar(lerDescartados(lixeiraBruta), [doc.id]);
-    avisar("Documento na lixeira. Dá para restaurar na biblioteca.", "sucesso");
-    router.push("/library");
+    setMovendoParaLixeira(true);
+    try {
+      await moverConteudoParaLixeira(doc.id);
+      avisar("Documento movido para a lixeira em todos os aparelhos.", "sucesso");
+      router.push("/library");
+    } catch (e) {
+      avisar((e as Error).message, "erro");
+      setMovendoParaLixeira(false);
+    }
   }
 
   async function compartilhar() {
@@ -212,11 +222,16 @@ function SummaryConteudo({ id }: { id: string }) {
               </span>
               Compartilhar
             </button>
-            <button type="button" className="chip chip-perigo" onClick={paraLixeira}>
+            <button
+              type="button"
+              className="chip chip-perigo"
+              onClick={() => void paraLixeira()}
+              disabled={movendoParaLixeira}
+            >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                 delete
               </span>
-              Lixeira
+              {movendoParaLixeira ? "Movendo…" : "Lixeira"}
             </button>
           </div>
         </section>

@@ -3,12 +3,10 @@
 import { gravarLocalStorage } from "./use-local-storage";
 
 /**
- * Lixeira local.
+ * Formato legado da lixeira local.
  *
- * O backend não expõe DELETE /conteudo — só dá para apagar uma pasta inteira,
- * o que levaria junto tudo que está dentro. Então "apagar" aqui significa
- * esconder da galeria neste navegador: o documento continua no banco e pode
- * ser restaurado a qualquer momento.
+ * Mantido somente para migrar ids gravados por versões antigas do PWA para a
+ * lixeira compartilhada do backend. Fluxos novos não devem gravar aqui.
  */
 export const CHAVE_LIXEIRA = "jovi_descartados";
 

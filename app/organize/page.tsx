@@ -4,11 +4,17 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import TopHeader from "@/components/TopHeader";
-import { getMaterias, criarMateria, confirmarConteudo, criarAula, type Materia } from "@/lib/api";
+import {
+  getMaterias,
+  criarMateria,
+  confirmarConteudo,
+  criarAula,
+  moverConteudoParaLixeira,
+  type Materia,
+} from "@/lib/api";
 import { janelaDeAula } from "@/lib/paginas-aula";
 import { useLocalStorage, gravarLocalStorage } from "@/lib/use-local-storage";
 import { avisar } from "@/lib/avisos";
-import { CHAVE_LIXEIRA, descartar, lerDescartados } from "@/lib/descartados";
 
 type ScanData = {
   cache_id: string;
@@ -152,10 +158,7 @@ function OrganizeConteudo() {
         );
         janelaDeAula.blobs = [];
         if (salvarNaLixeira) {
-          descartar(
-            lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]"),
-            [conteudo.id],
-          );
+          await moverConteudoParaLixeira(conteudo.id);
           avisar("Conteúdo salvo direto na Lixeira. Ele pode ser restaurado.", "sucesso");
           router.push("/library?lixeira=1");
           return;
@@ -179,10 +182,7 @@ function OrganizeConteudo() {
         JSON.stringify({ ...conteudo, materia_nome: materia?.nome ?? null }),
       );
       if (salvarNaLixeira) {
-        descartar(
-          lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]"),
-          [conteudo.id],
-        );
+        await moverConteudoParaLixeira(conteudo.id);
         avisar("Documento salvo direto na Lixeira. Ele pode ser restaurado.", "sucesso");
         router.push("/library?lixeira=1");
         return;

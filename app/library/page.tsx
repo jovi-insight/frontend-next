@@ -1,16 +1,32 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
 import GaleriaVideos from "@/components/GaleriaVideos";
-import { getRecentes, getPastas, getMaterias, type Conteudo, type Materia, type Pasta } from "@/lib/api";
-import { useLocalStorage } from "@/lib/use-local-storage";
-import { CHAVE_LIXEIRA, lerDescartados, descartar, restaurar } from "@/lib/descartados";
+import {
+  excluirConteudoPermanentemente,
+  getLixeira,
+  getMaterias,
+  getPastas,
+  getRecentes,
+  moverConteudoParaLixeira,
+  restaurarConteudo,
+  type Conteudo,
+  type Materia,
+  type Pasta,
+} from "@/lib/api";
+import { avisar } from "@/lib/avisos";
+import { CHAVE_LIXEIRA, lerDescartados } from "@/lib/descartados";
 
-type Dados = { itens: Conteudo[]; pastas: Pasta[]; materias: Materia[] };
+type Dados = {
+  itens: Conteudo[];
+  lixeira: Conteudo[];
+  pastas: Pasta[];
+  materias: Materia[];
+};
 
 function LibraryConteudo() {
   const abrirLixeira = useSearchParams().get("lixeira") === "1";
@@ -19,21 +35,45 @@ function LibraryConteudo() {
   const [selecionando, setSelecionando] = useState(false);
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [verLixeira, setVerLixeira] = useState(abrirLixeira);
+  const [processando, setProcessando] = useState(false);
 
-  const lixeiraBruta = useLocalStorage(CHAVE_LIXEIRA, "[]");
-  const descartados = useMemo(() => lerDescartados(lixeiraBruta), [lixeiraBruta]);
+  const buscarDados = useCallback(async (): Promise<Dados> => {
+    // Migração única da lixeira antiga, que existia apenas neste navegador.
+    // Depois que os ids chegam ao backend, todos os aparelhos enxergam o mesmo estado.
+    const legados = lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]");
+    if (legados.size > 0) {
+      await Promise.allSettled([...legados].map(moverConteudoParaLixeira));
+      localStorage.removeItem(CHAVE_LIXEIRA);
+    }
+    const [itens, lixeira, pastas, materias] = await Promise.all([
+      getRecentes(),
+      getLixeira(),
+      getPastas(),
+      getMaterias(),
+    ]);
+    return { itens, lixeira, pastas, materias };
+  }, []);
+
+  const guardarDados = useCallback((novosDados: Dados) => {
+    setDados(novosDados);
+    setErro(null);
+  }, []);
+
+  const carregarDados = useCallback(async () => {
+    guardarDados(await buscarDados());
+  }, [buscarDados, guardarDados]);
 
   useEffect(() => {
-    // Três rotas em paralelo: o conteúdo traz pasta_id, a pasta traz id_materia
+    // As rotas rodam em paralelo: o conteúdo traz pasta_id, a pasta traz id_materia
     // e só /materias sabe o nome. É essa cadeia que dá o título de cada seção.
     let ativo = true;
-    Promise.all([getRecentes(), getPastas(), getMaterias()])
-      .then(([itens, pastas, materias]) => ativo && setDados({ itens, pastas, materias }))
+    buscarDados()
+      .then((novosDados) => ativo && guardarDados(novosDados))
       .catch((e: Error) => ativo && setErro(e.message));
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [buscarDados, guardarDados]);
 
   /** Documentos agrupados por matéria, como os álbuns da galeria do celular. */
   const secoes = useMemo(() => {
@@ -42,21 +82,16 @@ function LibraryConteudo() {
     const nomeDaMateria = new Map(dados.materias.map((m) => [m.id, m.nome]));
 
     const grupos = new Map<string, { titulo: string; itens: Conteudo[] }>();
-    for (const doc of dados.itens) {
-      const naLixeira = descartados.has(doc.id);
-      if (verLixeira !== naLixeira) continue;
-
+    for (const doc of verLixeira ? dados.lixeira : dados.itens) {
       const materiaId = doc.pasta_id ? materiaDaPasta.get(doc.pasta_id) : null;
       const titulo = (materiaId && nomeDaMateria.get(materiaId)) || "Sem matéria";
       if (!grupos.has(titulo)) grupos.set(titulo, { titulo, itens: [] });
       grupos.get(titulo)!.itens.push(doc);
     }
     return [...grupos.values()].sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"));
-  }, [dados, descartados, verLixeira]);
+  }, [dados, verLixeira]);
 
-  const totalNaLixeira = dados
-    ? dados.itens.filter((d) => descartados.has(d.id)).length
-    : 0;
+  const totalNaLixeira = dados?.lixeira.length ?? 0;
 
   // As primeiras miniaturas precisam aparecer imediatamente. As demais seguem
   // em lazy loading para a galeria não baixar dezenas de MB de uma vez.
@@ -79,12 +114,35 @@ function LibraryConteudo() {
     setMarcados(new Set());
   }
 
-  function aplicar() {
+  async function aplicar(acao: "mover" | "restaurar" | "excluir") {
     const ids = [...marcados];
     if (!ids.length) return sairDaSelecao();
-    if (verLixeira) restaurar(descartados, ids);
-    else descartar(descartados, ids);
-    sairDaSelecao();
+    if (
+      acao === "excluir" &&
+      !confirm(
+        `Excluir definitivamente ${ids.length} ${ids.length === 1 ? "documento" : "documentos"}? Essa ação não pode ser desfeita.`,
+      )
+    ) return;
+
+    setProcessando(true);
+    try {
+      if (acao === "mover") {
+        await Promise.all(ids.map(moverConteudoParaLixeira));
+        avisar("Documento(s) movido(s) para a lixeira.", "sucesso");
+      } else if (acao === "restaurar") {
+        await Promise.all(ids.map(restaurarConteudo));
+        avisar("Documento(s) restaurado(s).", "sucesso");
+      } else {
+        await Promise.all(ids.map(excluirConteudoPermanentemente));
+        avisar("Documento(s) excluído(s) definitivamente.", "sucesso");
+      }
+      await carregarDados();
+      sairDaSelecao();
+    } catch (e) {
+      avisar((e as Error).message, "erro");
+    } finally {
+      setProcessando(false);
+    }
   }
 
   return (
@@ -112,16 +170,30 @@ function LibraryConteudo() {
           <div className="secao-acoes">
             {selecionando ? (
               <>
-                <button type="button" className="chip" onClick={sairDaSelecao}>
+                <button type="button" className="chip" onClick={sairDaSelecao} disabled={processando}>
                   Cancelar
                 </button>
+                {verLixeira && (
+                  <button
+                    type="button"
+                    className="chip chip-perigo"
+                    onClick={() => void aplicar("excluir")}
+                    disabled={marcados.size === 0 || processando}
+                  >
+                    Excluir de vez ({marcados.size})
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`chip ${verLixeira ? "chip-primario" : "chip-perigo"}`}
-                  onClick={aplicar}
-                  disabled={marcados.size === 0}
+                  onClick={() => void aplicar(verLixeira ? "restaurar" : "mover")}
+                  disabled={marcados.size === 0 || processando}
                 >
-                  {verLixeira ? `Restaurar (${marcados.size})` : `Descartar (${marcados.size})`}
+                  {processando
+                    ? "Processando…"
+                    : verLixeira
+                      ? `Restaurar (${marcados.size})`
+                      : `Lixeira (${marcados.size})`}
                 </button>
               </>
             ) : (
@@ -149,8 +221,8 @@ function LibraryConteudo() {
 
         {verLixeira && (
           <p className="nota-lixeira">
-            O backend não permite apagar um documento — ele continua salvo no banco. Aqui ele só
-            fica escondido da galeria deste navegador, e pode voltar quando você quiser.
+            A lixeira agora é sincronizada com o banco. Você pode restaurar um documento ou
+            excluí-lo definitivamente do banco e do Storage.
           </p>
         )}
 

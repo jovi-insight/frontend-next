@@ -11,6 +11,7 @@ import {
   getPasta,
   renomearPasta,
   excluirPasta,
+  moverConteudoParaLixeira,
   criarMateria,
   type Conteudo,
   type Materia,
@@ -122,6 +123,23 @@ function FoldersConteudo() {
       await excluirPasta(pasta.id);
       await recarregar();
       avisar("Pasta excluída.", "sucesso");
+    } catch (e) {
+      avisar((e as Error).message, "erro");
+    }
+  }
+
+  async function aoExcluirConteudo(conteudo: Conteudo) {
+    const titulo = (conteudo.extracao_original || "Documento").split("\n")[0].slice(0, 48);
+    if (!confirm(`Mover "${titulo}" para a lixeira?`)) return;
+    try {
+      await moverConteudoParaLixeira(conteudo.id);
+      setConteudos((atual) =>
+        atual
+          ? { ...atual, itens: atual.itens.filter((item) => item.id !== conteudo.id) }
+          : atual,
+      );
+      await recarregar();
+      avisar("Documento movido para a lixeira.", "sucesso");
     } catch (e) {
       avisar((e as Error).message, "erro");
     }
@@ -275,26 +293,11 @@ function FoldersConteudo() {
             {/* Nível 3: documentos da pasta */}
             {nivel.tipo === "pasta" &&
               conteudosDaPasta?.map((c) => (
-                <Link
+                <CardDocumento
                   key={c.id}
-                  href={`/summary/${c.id}`}
-                  className="folder-card"
-                  style={{ textDecoration: "none", color: "inherit" }}
-                >
-                  <div className="card-icon-container">
-                    <span className="material-symbols-outlined" style={{ fontSize: 28 }}>
-                      description
-                    </span>
-                  </div>
-                  <div className="folder-card-copy">
-                    <h3 className="card-title">
-                      {(c.extracao_original || "Documento").split("\n")[0].slice(0, 48)}
-                    </h3>
-                    <p className="card-subtitle">
-                      {c.resumo_ia ? "Resumo pronto" : "Sem resumo"}
-                    </p>
-                  </div>
-                </Link>
+                  conteudo={c}
+                  onExcluir={() => void aoExcluirConteudo(c)}
+                />
               ))}
 
             <VazioSeNecessario
@@ -309,6 +312,43 @@ function FoldersConteudo() {
 
       <BottomNav />
     </>
+  );
+}
+
+function CardDocumento({
+  conteudo,
+  onExcluir,
+}: {
+  conteudo: Conteudo;
+  onExcluir: () => void;
+}) {
+  const titulo = (conteudo.extracao_original || "Documento").split("\n")[0].slice(0, 48);
+  return (
+    <article className="folder-card">
+      <Link href={`/summary/${conteudo.id}`} className="card-area-clique">
+        <span className="sr-only">Abrir {titulo}</span>
+      </Link>
+      <div className="card-icon-container">
+        <span className="material-symbols-outlined" style={{ fontSize: 28 }}>
+          description
+        </span>
+      </div>
+      <div className="folder-card-copy">
+        <h3 className="card-title">{titulo}</h3>
+        <p className="card-subtitle">{conteudo.resumo_ia ? "Resumo pronto" : "Sem resumo"}</p>
+      </div>
+      <div className="card-acoes">
+        <button
+          type="button"
+          onClick={onExcluir}
+          title="Mover para a lixeira"
+          aria-label={`Mover ${titulo} para a lixeira`}
+          className="acao-perigo"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>delete</span>
+        </button>
+      </div>
+    </article>
   );
 }
 
