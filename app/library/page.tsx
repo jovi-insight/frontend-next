@@ -40,10 +40,19 @@ function LibraryConteudo() {
   const buscarDados = useCallback(async (): Promise<Dados> => {
     // Migração única da lixeira antiga, que existia apenas neste navegador.
     // Depois que os ids chegam ao backend, todos os aparelhos enxergam o mesmo estado.
-    const legados = lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]");
-    if (legados.size > 0) {
-      await Promise.allSettled([...legados].map(moverConteudoParaLixeira));
-      localStorage.removeItem(CHAVE_LIXEIRA);
+    try {
+      const legados = [...lerDescartados(localStorage.getItem(CHAVE_LIXEIRA) || "[]")];
+      if (legados.length > 0) {
+        const resultados = await Promise.allSettled(legados.map(moverConteudoParaLixeira));
+        const pendentes = legados.filter((_, indice) => resultados[indice].status === "rejected");
+        if (pendentes.length > 0) {
+          localStorage.setItem(CHAVE_LIXEIRA, JSON.stringify(pendentes));
+        } else {
+          localStorage.removeItem(CHAVE_LIXEIRA);
+        }
+      }
+    } catch {
+      // Armazenamento bloqueado não impede consultar a lixeira do servidor.
     }
     const [itens, lixeira, pastas, materias] = await Promise.all([
       getRecentes(),
