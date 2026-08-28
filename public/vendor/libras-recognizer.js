@@ -15,11 +15,11 @@
     const STATIC_LETTERS = [
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
         'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-        'T', 'U', 'V', 'W'
+        'T', 'U', 'V', 'W', 'X', 'Y'
     ];
     const DYNAMIC_LETTERS = ['Ç', 'J', 'Z'];
     const STORAGE_VERSION = 5;
-    const NEURAL_STORAGE_VERSION = 1;
+    const NEURAL_STORAGE_VERSION = 2;
 
     const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
     const point = (p) => ({ x: p.x, y: p.y, z: Number.isFinite(p.z) ? p.z : 0 });
@@ -443,7 +443,8 @@
     class LibrasAlphabetRecognizer {
         constructor(options = {}) {
             this.storageKey = options.storageKey || 'jovi.libras.calibration.v5';
-            this.neuralStorageKey = options.neuralStorageKey || 'jovi.libras.neural.v1';
+            this.neuralStorageKey = options.neuralStorageKey || 'jovi.libras.neural.v2';
+            this.xyCleanupKey = options.xyCleanupKey || 'jovi.libras.xy-clean.v1';
             this.minimumCalibrationSamples = options.minimumCalibrationSamples || 20;
             this.voteWindowSize = options.voteWindowSize || 9;
             this.minimumVotes = options.minimumVotes || 6;
@@ -463,11 +464,25 @@
         loadCalibration() {
             try {
                 const stored = global.localStorage && global.localStorage.getItem(this.storageKey);
-                if (!stored) return {};
+                const needsXyCleanup = global.localStorage
+                    && !global.localStorage.getItem(this.xyCleanupKey);
+                if (!stored) {
+                    // Aparelhos novos não possuem dados antigos para limpar.
+                    // Marcar agora evita apagar o primeiro treino limpo de X/Y.
+                    if (needsXyCleanup) global.localStorage.setItem(this.xyCleanupKey, '1');
+                    return {};
+                }
                 const parsed = JSON.parse(stored);
                 if (parsed.version !== STORAGE_VERSION || typeof parsed.samples !== 'object') return {};
-                delete parsed.samples.X;
-                delete parsed.samples.Y;
+                // X/Y foram temporariamente desativadas por terem recebido
+                // exemplos ruins. Removemos somente esses exemplos uma vez e
+                // mantemos toda a calibração válida das demais letras.
+                if (needsXyCleanup) {
+                    delete parsed.samples.X;
+                    delete parsed.samples.Y;
+                    global.localStorage.setItem(this.storageKey, JSON.stringify(parsed));
+                    global.localStorage.setItem(this.xyCleanupKey, '1');
+                }
                 return parsed.samples;
             } catch (error) {
                 console.warn('Não foi possível carregar a calibração de Libras:', error);
@@ -769,6 +784,7 @@
             const crossed = ((n[8].y - n[12].y) * (n[5].y - n[9].y)) < 0 ? 1 : 0;
             const thumbAtIndexSide = clamp((n[5].y - n[4].y + 0.08) / 0.58);
             const thumbAcrossPalm = clamp((n[4].y - n[5].y + 0.05) / 0.72);
+            const indexHook = clamp(1 - Math.abs(e[1] - 0.4) / 0.3);
             const fingertipCluster = average([
                 closeScore(d.thumbIndex, 0.55),
                 closeScore(d.thumbMiddle, 0.62),
@@ -787,6 +803,15 @@
                 palmUp
             ]);
             add('I', [0.2, 0.05, 0.05, 0.05, 1], [1 - e[0], palmUp]);
+            // Y mantém polegar e mínimo realmente abertos. Exigir os dois
+            // separa essa configuração do I e impede que ela alimente o J.
+            add('Y', [0.9, 0.05, 0.05, 0.05, 1], [
+                e[0],
+                e[4],
+                thumbAtIndexSide,
+                farScore(d.thumbPinky, 1.05),
+                palmUp
+            ], 0.015);
             add('L', [0.8, 1, 0.05, 0.05, 0.05], [e[0], thumbAtIndexSide, farScore(d.thumbIndex, 0.9), palmUp]);
             add('K', [0.65, 1, 1, 0.05, 0.05], [closeScore(d.thumbMiddlePip, 0.62), twoApart, palmFacingCamera, palmUp]);
             add('U', [0.2, 1, 1, 0.05, 0.05], [twoTogether, 1 - crossed, palmFacingCamera, palmUp]);
@@ -802,6 +827,14 @@
 
             add('W', [0.2, 1, 1, 1, 0.05], [farScore(d.indexPinky, 1.15), palmUp]);
             add('Q', [0.35, 0.75, 0.08, 0.08, 0.08], [palmDown, thumbIndexTouch], 0.015);
+            // X usa o indicador em gancho, não apenas parcialmente aberto.
+            // A palma visível e o polegar recolhido reduzem a confusão com A.
+            add('X', [0.2, 0.4, 0.05, 0.05, 0.05], [
+                indexHook,
+                1 - e[0],
+                palmFacingCamera,
+                closeScore(d.thumbIndexMcp, 0.9)
+            ], 0.025);
 
             add('O', [0.45, 0.45, 0.45, 0.45, 0.4], [fingertipCluster, closeScore(d.thumbPinky, 0.82)]);
             add('C', [0.75, 0.8, 0.8, 0.8, 0.78], [
@@ -820,7 +853,7 @@
             const second = candidates[1];
             if (!first || first.score < 0.73 || (second && first.score - second.score < 0.035)) return null;
 
-            const ambiguous = ['A', 'D', 'E', 'F', 'G', 'H', 'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T'];
+            const ambiguous = ['A', 'D', 'E', 'F', 'G', 'H', 'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'X', 'Y'];
             const confidenceCap = ambiguous.includes(first.letter) ? 0.78 : 0.86;
             const confidence = clamp(0.52 + (first.score - 0.7) * 1.15, 0.52, confidenceCap);
             return {
@@ -850,12 +883,14 @@
                 wrist: { x: lm[0].x, y: lm[0].y },
                 scale,
                 indexOnly: extension[1] > 0.78 && extension[2] < 0.35 && extension[3] < 0.35 && extension[4] < 0.35,
-                pinkyOnly: extension[4] > 0.76 && extension[1] < 0.35 && extension[2] < 0.35 && extension[3] < 0.35,
+                // O polegar fechado diferencia o início de J/I da postura Y.
+                pinkyOnly: extension[0] < 0.48 && extension[4] > 0.76
+                    && extension[1] < 0.35 && extension[2] < 0.35 && extension[3] < 0.35,
                 cShape
             });
-            // O J costuma ser desenhado mais devagar na câmera frontal. Uma
-            // janela um pouco maior preserva a haste e a curva no mesmo gesto.
-            this.motionBuffer = this.motionBuffer.filter((sample) => timestamp - sample.time <= 1450);
+            // J e Ç costumam ser desenhados mais devagar na câmera frontal.
+            // A janela preserva a forma inteira sem reaproveitar gestos antigos.
+            this.motionBuffer = this.motionBuffer.filter((sample) => timestamp - sample.time <= 1700);
 
             const recent = this.motionBuffer.filter((sample) => timestamp - sample.time <= 260);
             let speed = 0;
@@ -909,7 +944,9 @@
 
         isZTrajectory(trajectory) {
             const stats = this.trajectoryStats(trajectory, 'indexScreen');
-            if (stats.xSpan < 0.48 || stats.ySpan < 0.18 || stats.path < 1.05) return false;
+            if (trajectory.length < 9 || stats.xSpan < 0.38 || stats.ySpan < 0.16 || stats.path < 0.82) {
+                return false;
+            }
 
             const runs = this.directionRuns(trajectory, 'indexScreen');
             if (runs.length < 3) return false;
@@ -938,6 +975,61 @@
                 }
             }
             return false;
+        }
+
+        isJTrajectory(trajectory) {
+            if (trajectory.length < 7) return false;
+            const stats = this.trajectoryStats(trajectory, 'pinkyScreen');
+            if (
+                stats.xSpan < 0.14
+                || stats.ySpan < 0.26
+                || stats.path < Math.max(0.5, stats.direct * 1.12)
+            ) return false;
+
+            const start = trajectory[0].pinkyScreen;
+            let turnIndex = 1;
+            let verticalTravel = 0;
+            for (let index = 1; index < trajectory.length; index += 1) {
+                const travel = Math.abs(trajectory[index].pinkyScreen.y - start.y);
+                if (travel > verticalTravel) {
+                    verticalTravel = travel;
+                    turnIndex = index;
+                }
+            }
+
+            // Primeiro vem a haste e só então o gancho. O sinal horizontal é
+            // livre para funcionar igualmente com câmera frontal espelhada.
+            if (turnIndex < Math.floor(trajectory.length * 0.4) || turnIndex >= trajectory.length - 1) {
+                return false;
+            }
+            const turn = trajectory[turnIndex].pinkyScreen;
+            const end = trajectory[trajectory.length - 1].pinkyScreen;
+            const stemDrift = Math.abs(turn.x - start.x);
+            const hookWidth = Math.abs(end.x - turn.x);
+            const hookReturn = Math.abs(end.y - turn.y);
+            return verticalTravel >= 0.24
+                && stemDrift <= Math.max(0.18, verticalTravel * 0.7)
+                && hookWidth >= 0.12
+                && hookReturn >= 0.025;
+        }
+
+        isCedillaTrajectory(trajectory) {
+            if (trajectory.length < 7) return false;
+            const stats = this.trajectoryStats(trajectory, 'wrist');
+            if (
+                stats.xSpan < 0.3
+                || stats.ySpan > Math.max(0.42, stats.xSpan * 1.15)
+                || stats.path < Math.max(0.68, stats.direct * 1.25)
+            ) return false;
+
+            const runs = this.directionRuns(trajectory, 'wrist');
+            return runs.some((run, index) => {
+                const next = runs[index + 1];
+                return next
+                    && run.sign === -next.sign
+                    && run.distance >= 0.16
+                    && next.distance >= 0.16;
+            });
         }
 
         confirmDynamic(letter, confidence, source, timestamp) {
@@ -992,9 +1084,7 @@
             const pinkySamples = this.motionBuffer.filter((sample) => sample.pinkyOnly);
             if (pinkySamples.length >= 7) {
                 const trajectory = this.normalizeScreenTrajectory(pinkySamples, 'pinkyScreen');
-                const stats = this.trajectoryStats(trajectory, 'pinkyScreen');
-                const curvedEnough = stats.path > Math.max(0.55, stats.direct * 1.14);
-                if (stats.xSpan > 0.16 && stats.ySpan > 0.28 && curvedEnough) {
+                if (this.isJTrajectory(trajectory)) {
                     return this.confirmDynamic('J', 0.87, 'movimento-j', timestamp);
                 }
             }
@@ -1002,9 +1092,7 @@
             const cSamples = this.motionBuffer.filter((sample) => sample.cShape);
             if (cSamples.length >= 8) {
                 const normalizedCSamples = this.normalizeScreenTrajectory(cSamples, 'wrist');
-                const stats = this.trajectoryStats(normalizedCSamples, 'wrist');
-                const runs = this.directionRuns(normalizedCSamples, 'wrist');
-                if (runs.length >= 2 && stats.xSpan > 0.42 && stats.path > 0.8) {
+                if (this.isCedillaTrajectory(normalizedCSamples)) {
                     return this.confirmDynamic('Ç', 0.86, 'movimento-cedilha', timestamp);
                 }
             }
@@ -1051,7 +1139,7 @@
             // evita registrá-lo antes de o usuário terminar a curva do J.
             const minimumHoldTime = prediction.letter === 'I'
                 ? 1100
-                : (canBecomeDynamic ? 620 : 0);
+                : (canBecomeDynamic ? 850 : 0);
             if (matching.length < this.minimumVotes || timestamp - this.staticCandidateSince < minimumHoldTime) {
                 return { ...prediction, status: 'estabilizando', motion };
             }

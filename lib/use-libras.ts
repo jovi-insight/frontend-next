@@ -5,7 +5,7 @@ import { inferirLandmarks, statusModelo } from "./libras-ml";
 
 // Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
 const PAUSA_DE_PALAVRA = 2000;
-const LETRAS_BLOQUEADAS = new Set(["X", "Y"]);
+const LETRAS_REATIVADAS = new Set(["X", "Y"]);
 
 const VERSAO_MEDIAPIPE = "0.4.1675469240";
 const CDN_MEDIAPIPE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${VERSAO_MEDIAPIPE}`;
@@ -209,7 +209,6 @@ export function useLibras(
 
   /** Uma letra confirmada só entra de novo depois que a mão sai da pose. */
   const registrarLetra = useCallback((nova: string) => {
-    if (LETRAS_BLOQUEADAS.has(nova.toUpperCase())) return;
     if (nova === ultimaLetraRef.current && !liberadoRef.current) return;
     ultimaLetraRef.current = nova;
     liberadoRef.current = false;
@@ -244,7 +243,7 @@ export function useLibras(
         );
         if (reconhecer || calibrar) {
           await carregarScriptComRetry(
-            "/vendor/libras-recognizer.js?v=j-gesture-20260827",
+            "/vendor/libras-recognizer.js?v=dynamic-v2-20260828",
             () => typeof window.LibrasAlphabetRecognizer === "function",
             "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
           );
@@ -318,11 +317,7 @@ export function useLibras(
             void inferirLandmarks(pontos)
               .then((predicao) => {
                 if (!vivo) return;
-                if (
-                  predicao.unknown ||
-                  !predicao.letter ||
-                  LETRAS_BLOQUEADAS.has(predicao.letter.toUpperCase())
-                ) {
+                if (predicao.unknown || !predicao.letter) {
                   bufferBackendRef.current = [];
                   predicaoBackendRef.current = null;
                   return;
@@ -355,11 +350,20 @@ export function useLibras(
 
           const local = rec.process(pontos, agora);
           const neural = predicaoBackendRef.current;
+          // O modelo publicado ainda pode não ter as novas coletas limpas de
+          // X/Y. Enquanto isso, uma configuração local estável dessas letras
+          // não deve ser sobrescrita por uma classe antiga do backend.
+          const reativadaLocalEstavel = Boolean(
+            local.letter &&
+            LETRAS_REATIVADAS.has(local.letter.toUpperCase()) &&
+            (local.status === "estabilizando" || local.status === "confirmado"),
+          );
           const saidaBruta: Resultado =
             neural &&
             agora - neural.recebidaEm <= 700 &&
             !local.dynamic &&
-            !local.motion?.moving
+            !local.motion?.moving &&
+            !reativadaLocalEstavel
               ? {
                   status: "confirmado",
                   letter: neural.letter,
@@ -367,12 +371,7 @@ export function useLibras(
                   motion: local.motion,
                 }
               : local;
-          // Defesa final para aparelhos que ainda estejam com pesos ou o
-          // reconhecedor antigo na memoria do PWA.
-          const saida: Resultado =
-            saidaBruta.letter && LETRAS_BLOQUEADAS.has(saidaBruta.letter.toUpperCase())
-              ? { status: "incerto", motion: saidaBruta.motion }
-              : saidaBruta;
+          const saida: Resultado = saidaBruta;
           setEmMovimento(Boolean(saida.motion?.moving));
 
           if (saida.status === "confirmado" && saida.letter) {
