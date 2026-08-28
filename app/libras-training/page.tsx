@@ -17,7 +17,7 @@ import {
 import { useCamera } from "@/lib/use-camera";
 import { useLibras, type Landmark } from "@/lib/use-libras";
 
-const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVW".split("");
+const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVWXY".split("");
 const ALVO_AMOSTRAS = 45;
 const MINIMO_POR_LETRA = 20;
 
@@ -32,6 +32,8 @@ const DICAS: Partial<Record<string, string>> = {
   N: "Aponte indicador e médio juntos para baixo; recolha os demais.",
   P: "Aponte indicador e médio para o lado e mantenha os demais recolhidos.",
   V: "Mostre a palma e abra indicador e médio em V.",
+  X: "Curve apenas o indicador em gancho; mantenha polegar e os outros dedos recolhidos.",
+  Y: "Estenda polegar e mínimo bem afastados; recolha indicador, médio e anelar.",
 };
 
 type Modelo = Awaited<ReturnType<typeof statusModelo>>;
@@ -409,6 +411,15 @@ function TreinamentoLibrasConteudo() {
             <div className="treino-dica" aria-live="polite">
               <span className="material-symbols-outlined" aria-hidden="true">sign_language</span>
               <p><strong>Letra {letra}</strong>{mensagemColeta}</p>
+            </div>
+
+            <div className="treino-dica">
+              <span className="material-symbols-outlined" aria-hidden="true">gesture</span>
+              <p>
+                <strong>J, Z e Ç usam movimento</strong>
+                No J, faça a haste e termine o gancho com o mínimo; no Z, desenhe os três
+                traços com o indicador; no Ç, mantenha a forma de C e mova para os dois lados.
+              </p>
             </div>
 
             <div className="treino-progresso-bloco">
