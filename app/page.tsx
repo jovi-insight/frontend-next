@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
+import ConfirmarEventoCalendario from "@/components/ConfirmarEventoCalendario";
 import {
   AJUSTES_PADRAO,
   GavetaAjustes,
@@ -17,7 +18,12 @@ import { useCamera, type ModoFlash } from "@/lib/use-camera";
 import { useAula } from "@/lib/use-aula";
 import { useGravador } from "@/lib/use-gravador";
 import { useLibras } from "@/lib/use-libras";
-import { analisarImagem } from "@/lib/api";
+import {
+  analisarImagem,
+  criarEventoCalendario,
+  type AnaliseEventoCalendario,
+  type NovoEventoCalendario,
+} from "@/lib/api";
 import {
   criarPagina, marcarTexto, marcarLendo, marcarFalha, removerPagina, textoDaAula, janelaDeAula,
   type Pagina,
@@ -29,6 +35,13 @@ import { CHAVE_PERFIL, temPerfil } from "@/lib/perfil";
 
 type Modo = "FOTO" | "VÍDEO" | "SCAN" | "LIBRAS" | "AULA";
 const MODOS: Modo[] = ["FOTO", "VÍDEO", "SCAN", "LIBRAS", "AULA"];
+
+type EventoEmConfirmacao = {
+  analise: AnaliseEventoCalendario;
+  imagem: string;
+};
+
+const PESO_CONFIANCA = { baixa: 1, media: 2, alta: 3 } as const;
 
 const FILTRO_REALCE = "contrast(1.35) brightness(1.08) saturate(0.9)";
 
@@ -70,6 +83,8 @@ function CameraConteudo() {
   // Páginas da aula em captura. Ficam no aparelho até o aluno concluir.
   const [paginas, setPaginas] = useState<Pagina[]>([]);
   const [previewPaginaIndex, setPreviewPaginaIndex] = useState<number | null>(null);
+  const [eventoEmConfirmacao, setEventoEmConfirmacao] = useState<EventoEmConfirmacao | null>(null);
+  const [salvandoEvento, setSalvandoEvento] = useState(false);
 
   const camera = useCamera();
   const aula = useAula();
@@ -242,6 +257,26 @@ function CameraConteudo() {
     setPaginas((antes) => [...antes, criarPagina(imagem, miniatura ?? imagem)]);
   }, [camera, filtroAtual, modo, zoomDigital]);
 
+  async function confirmarEventoCalendario(dados: NovoEventoCalendario) {
+    if (salvandoEvento) return;
+    setSalvandoEvento(true);
+    try {
+      await criarEventoCalendario(dados);
+      setEventoEmConfirmacao(null);
+      avisar("Evento confirmado e salvo no calendário.", "sucesso");
+      router.push("/organize?aula=1");
+    } catch (e) {
+      avisar((e as Error).message, "erro");
+    } finally {
+      setSalvandoEvento(false);
+    }
+  }
+
+  function continuarSemEvento() {
+    setEventoEmConfirmacao(null);
+    router.push("/organize?aula=1");
+  }
+
   /** Flash: lanterna física e clarão de tela sincronizados. */
   const comFlash = useCallback(
     async (acao: () => Promise<void>) => {
@@ -286,6 +321,7 @@ function CameraConteudo() {
       let materiaSugeridaId: string | null = null;
       let paginasAnalisadas = 0;
       let paginasLixo = 0;
+      let eventoSugerido: EventoEmConfirmacao | null = null;
       const motivosLixo: string[] = [];
       for (const [i, pagina] of paginas.entries()) {
         setOcupado(`Lendo página ${i + 1} de ${paginas.length}…`);
@@ -303,6 +339,18 @@ function CameraConteudo() {
             }
             if (analise.materia_sugerida_id && !materiaSugeridaId) {
               materiaSugeridaId = analise.materia_sugerida_id;
+            }
+            const sugestao = analise.evento_calendario;
+            if (
+              sugestao?.evento_detectado &&
+              (!eventoSugerido ||
+                PESO_CONFIANCA[sugestao.confianca] >
+                  PESO_CONFIANCA[eventoSugerido.analise.confianca])
+            ) {
+              eventoSugerido = {
+                analise: { ...sugestao, texto_extraido: analise.texto_extraido || "" },
+                imagem: pagina.miniatura || pagina.imagem,
+              };
             }
             break;
           } catch (e) {
@@ -366,6 +414,10 @@ function CameraConteudo() {
       // A escolha da matéria continua na tela de organizar; guardamos as
       // imagens aqui até lá.
       janelaDeAula.blobs = blobs;
+      if (eventoSugerido) {
+        setEventoEmConfirmacao(eventoSugerido);
+        return;
+      }
       router.push("/organize?aula=1");
     } catch (e) {
       // Falhou o envio: as páginas continuam na tira, nada se perde.
@@ -628,6 +680,13 @@ function CameraConteudo() {
           )}
         </div>
 
+        {modo === "SCAN" && !ocupado && paginas.length === 0 && (
+          <div className="calendario-camera-instrucao">
+            <span className="material-symbols-outlined" aria-hidden="true">document_scanner</span>
+            <p><strong>SCAN inteligente</strong><span>Texto, matéria e datas em uma só captura.</span></p>
+          </div>
+        )}
+
         {contagem > 0 && <div className="contagem-regressiva">{contagem}</div>}
 
         {/* Flash de tela para aparelhos sem lanterna. */}
@@ -880,6 +939,16 @@ function CameraConteudo() {
             </button>
           </div>
         </div>
+      )}
+
+      {eventoEmConfirmacao && (
+        <ConfirmarEventoCalendario
+          analise={eventoEmConfirmacao.analise}
+          imagem={eventoEmConfirmacao.imagem}
+          salvando={salvandoEvento}
+          onCancelar={continuarSemEvento}
+          onConfirmar={confirmarEventoCalendario}
+        />
       )}
 
       {/* Deck inferior com layout flexbox fluido que não sobrepõe em nenhuma tela */}
