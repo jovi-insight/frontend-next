@@ -59,6 +59,39 @@ export type AnaliseImagem = {
   cache_id: string;
   conteudo_lixo: boolean;
   motivo_lixo: string | null;
+  evento_calendario: SugestaoEventoCalendario | null;
+};
+
+export type TipoEventoCalendario = "prova" | "avaliacao" | "trabalho" | "atividade" | "outro";
+
+export type SugestaoEventoCalendario = {
+  evento_detectado: boolean;
+  titulo: string | null;
+  tipo: TipoEventoCalendario;
+  data: string | null;
+  hora: string | null;
+  materia: string | null;
+  observacoes: string | null;
+  confianca: "alta" | "media" | "baixa";
+};
+
+export type AnaliseEventoCalendario = SugestaoEventoCalendario & {
+  texto_extraido: string;
+};
+
+export type NovoEventoCalendario = {
+  titulo: string;
+  tipo: TipoEventoCalendario;
+  data: string;
+  hora: string | null;
+  materia: string | null;
+  observacoes: string | null;
+  texto_original: string | null;
+};
+
+export type EventoCalendario = NovoEventoCalendario & {
+  id: string;
+  criado_em: string;
 };
 
 export type VideoUsuario = {
@@ -119,6 +152,32 @@ export async function analisarImagem(arquivo: Blob): Promise<AnaliseImagem> {
 export async function gerarResumo(conteudoId: string): Promise<{ resumo: string }> {
   const res = await pedirJson("/ia/resumo", "POST", { conteudo_id: conteudoId });
   return handle(res, "Falha ao gerar resumo");
+}
+
+// ─── Calendário ───────────────────────────────────────────
+export async function criarEventoCalendario(
+  evento: NovoEventoCalendario,
+): Promise<EventoCalendario> {
+  const res = await pedirJson("/calendario/eventos", "POST", evento);
+  return handle(res, "Não foi possível salvar o evento no calendário");
+}
+
+export async function listarEventosCalendario(
+  periodo?: { inicio?: string; fim?: string },
+): Promise<EventoCalendario[]> {
+  const parametros = new URLSearchParams();
+  if (periodo?.inicio) parametros.set("inicio", periodo.inicio);
+  if (periodo?.fim) parametros.set("fim", periodo.fim);
+  const query = parametros.size ? `?${parametros}` : "";
+  const res = await fetch(`${BASE_URL}/calendario/eventos${query}`);
+  return handle(res, "Não foi possível carregar o calendário");
+}
+
+export async function excluirEventoCalendario(eventoId: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/calendario/eventos/${eventoId}`, {
+    method: "DELETE",
+  });
+  return handle(res, "Não foi possível excluir o evento");
 }
 
 /** MP3 da narração. Idiomas: pt, en, es, fr, de, it, ja, ko, zh. */

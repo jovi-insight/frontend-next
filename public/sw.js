@@ -3,7 +3,7 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v6-libras-retry";
+const CACHE_NAME = "insight-pwa-v7-calendario-backend";
 const IMAGE_CACHE_NAME = "insight-images-v1";
 const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
 const ASSETS_TO_CACHE = [
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   "/library",
   "/folders",
   "/settings",
+  "/calendar",
   "/libras-training",
   "/translate",
   "/manifest.json",
@@ -72,6 +73,7 @@ self.addEventListener("fetch", (event) => {
     event.request.url.includes("/materias") ||
     event.request.url.includes("/pastas") ||
     event.request.url.includes("/videos") ||
+    event.request.url.includes("/calendario/") ||
     event.request.url.includes("/v1/") ||
     event.request.url.includes("/libras/")
   ) {
