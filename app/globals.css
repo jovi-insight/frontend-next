@@ -2,7 +2,7 @@
    cópia de frontend/css/main.css). São ~4.100 linhas de tokens, temas de
    acessibilidade e componentes já validados — reescrever isso em utilitários
    não mudaria um pixel na tela.
-
+ 
    O Tailwind do create-next-app foi retirado de propósito: o jovi.css aplica
    font-family com !important em `*`, e o preflight só brigaria com ele. Se um
    dia fizer falta, dá para reintroduzir importando antes desta linha. */
