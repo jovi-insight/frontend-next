@@ -20,6 +20,7 @@ import {
 } from "@/lib/api";
 import { avisar } from "@/lib/avisos";
 import { CHAVE_LIXEIRA, lerDescartados } from "@/lib/descartados";
+import { useLocalStorage } from "@/lib/use-local-storage";
 
 type Dados = {
   itens: Conteudo[];
@@ -36,8 +37,24 @@ function LibraryConteudo() {
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [verLixeira, setVerLixeira] = useState(abrirLixeira);
   const [processando, setProcessando] = useState(false);
+  const [recentesCarregados, setRecentesCarregados] = useState(false);
+  const [lixeiraCarregada, setLixeiraCarregada] = useState(false);
+  const [erroLixeira, setErroLixeira] = useState<string | null>(null);
+  const ultimoResultadoBruto = useLocalStorage("jovi_last_scan_result");
+  const ultimaImagemCapturada = useLocalStorage("scan_image");
 
-  const buscarDados = useCallback(async (): Promise<Dados> => {
+  const previewLocal = useMemo(() => {
+    try {
+      const resultado = JSON.parse(ultimoResultadoBruto) as { id?: string };
+      return resultado.id && ultimaImagemCapturada
+        ? { conteudoId: resultado.id, imagem: ultimaImagemCapturada }
+        : null;
+    } catch {
+      return null;
+    }
+  }, [ultimoResultadoBruto, ultimaImagemCapturada]);
+
+  const migrarLixeiraLegada = useCallback(async () => {
     // Migração única da lixeira antiga, que existia apenas neste navegador.
     // Depois que os ids chegam ao backend, todos os aparelhos enxergam o mesmo estado.
     try {
@@ -54,35 +71,73 @@ function LibraryConteudo() {
     } catch {
       // Armazenamento bloqueado não impede consultar a lixeira do servidor.
     }
-    const [itens, lixeira, pastas, materias] = await Promise.all([
-      getRecentes(),
-      getLixeira(),
-      getPastas(),
-      getMaterias(),
-    ]);
-    return { itens, lixeira, pastas, materias };
-  }, []);
-
-  const guardarDados = useCallback((novosDados: Dados) => {
-    setDados(novosDados);
-    setErro(null);
   }, []);
 
   const carregarDados = useCallback(async () => {
-    guardarDados(await buscarDados());
-  }, [buscarDados, guardarDados]);
+    const [itens, lixeira] = await Promise.all([getRecentes(), getLixeira()]);
+    setDados((atuais) => ({
+      itens,
+      lixeira,
+      pastas: atuais?.pastas ?? [],
+      materias: atuais?.materias ?? [],
+    }));
+    setErro(null);
+    setErroLixeira(null);
+    setRecentesCarregados(true);
+    setLixeiraCarregada(true);
+
+    const [pastas, materias] = await Promise.allSettled([getPastas(), getMaterias()]);
+    setDados((atuais) => ({
+      itens: atuais?.itens ?? itens,
+      lixeira: atuais?.lixeira ?? lixeira,
+      pastas: pastas.status === "fulfilled" ? pastas.value : atuais?.pastas ?? [],
+      materias: materias.status === "fulfilled" ? materias.value : atuais?.materias ?? [],
+    }));
+  }, []);
 
   useEffect(() => {
-    // As rotas rodam em paralelo: o conteúdo traz pasta_id, a pasta traz id_materia
-    // e só /materias sabe o nome. É essa cadeia que dá o título de cada seção.
+    // Documentos aparecem assim que /recentes responde. Lixeira e nomes das
+    // matérias completam a tela depois, sem segurar a galeria inteira.
     let ativo = true;
-    buscarDados()
-      .then((novosDados) => ativo && guardarDados(novosDados))
-      .catch((e: Error) => ativo && setErro(e.message));
+    const atualizar = (parcial: Partial<Dados>) => {
+      if (!ativo) return;
+      setDados((atuais) => ({
+        itens: atuais?.itens ?? [],
+        lixeira: atuais?.lixeira ?? [],
+        pastas: atuais?.pastas ?? [],
+        materias: atuais?.materias ?? [],
+        ...parcial,
+      }));
+    };
+
+    getRecentes()
+      .then((itens) => {
+        atualizar({ itens });
+        if (ativo) setErro(null);
+      })
+      .catch((e: Error) => ativo && setErro(e.message))
+      .finally(() => ativo && setRecentesCarregados(true));
+
+    getPastas().then((pastas) => atualizar({ pastas })).catch(() => undefined);
+    getMaterias().then((materias) => atualizar({ materias })).catch(() => undefined);
+
+    void (async () => {
+      try {
+        await migrarLixeiraLegada();
+        const lixeira = await getLixeira();
+        atualizar({ lixeira });
+        if (ativo) setErroLixeira(null);
+      } catch (e) {
+        if (ativo) setErroLixeira((e as Error).message);
+      } finally {
+        if (ativo) setLixeiraCarregada(true);
+      }
+    })();
+
     return () => {
       ativo = false;
     };
-  }, [buscarDados, guardarDados]);
+  }, [migrarLixeiraLegada]);
 
   /** Documentos agrupados por matéria, como os álbuns da galeria do celular. */
   const secoes = useMemo(() => {
@@ -105,8 +160,13 @@ function LibraryConteudo() {
   // As primeiras miniaturas precisam aparecer imediatamente. As demais seguem
   // em lazy loading para a galeria não baixar dezenas de MB de uma vez.
   const imagensPrioritarias = useMemo(
-    () => new Set((dados?.itens ?? []).slice(0, 12).map((item) => item.id)),
-    [dados],
+    () =>
+      new Set(
+        ((verLixeira ? dados?.lixeira : dados?.itens) ?? [])
+          .slice(0, 12)
+          .map((item) => item.id),
+      ),
+    [dados, verLixeira],
   );
 
   function alternarMarca(id: string) {
@@ -235,19 +295,28 @@ function LibraryConteudo() {
           </p>
         )}
 
-        {erro && (
+        {erro && !verLixeira && (
           <p role="alert" style={{ color: "var(--error)", fontSize: 12 }}>
             Falha ao conectar com o banco: {erro}
           </p>
         )}
 
-        {!dados && !erro && (
+        {erroLixeira && verLixeira && (
+          <p role="alert" style={{ color: "var(--error)", fontSize: 12 }}>
+            Falha ao carregar a lixeira: {erroLixeira}
+          </p>
+        )}
+
+        {((!verLixeira && !recentesCarregados && !erro) ||
+          (verLixeira && !lixeiraCarregada && !erroLixeira)) && (
           <div className="loading-container">
             <div className="spinner" />
           </div>
         )}
 
-        {dados && secoes.length === 0 && (
+        {dados &&
+          (verLixeira ? lixeiraCarregada && !erroLixeira : recentesCarregados && !erro) &&
+          secoes.length === 0 && (
           <div className="empty-state">
             <span className="material-symbols-outlined" style={{ fontSize: 48, opacity: 0.4 }}>
               {verLixeira ? "delete" : "inventory_2"}
@@ -258,7 +327,7 @@ function LibraryConteudo() {
           </div>
         )}
 
-        {secoes.map((secao) => (
+        {(verLixeira ? lixeiraCarregada : recentesCarregados) && secoes.map((secao) => (
           <section key={secao.titulo} className="album">
             <header className="album-titulo">
               <h3>{secao.titulo}</h3>
@@ -273,6 +342,7 @@ function LibraryConteudo() {
                   selecionando={selecionando}
                   marcado={marcados.has(doc.id)}
                   prioritaria={imagensPrioritarias.has(doc.id)}
+                  previewLocal={previewLocal?.conteudoId === doc.id ? previewLocal.imagem : null}
                   onMarcar={() => alternarMarca(doc.id)}
                 />
               ))}
@@ -291,15 +361,17 @@ function Miniatura({
   selecionando,
   marcado,
   prioritaria,
+  previewLocal,
   onMarcar,
 }: {
   doc: Conteudo;
   selecionando: boolean;
   marcado: boolean;
   prioritaria: boolean;
+  previewLocal: string | null;
   onMarcar: () => void;
 }) {
-  const thumbBruta = doc.imagem_url || doc.imagens?.[0]?.url_storage;
+  const thumbBruta = doc.imagem_url || doc.imagens?.[0]?.url_storage || previewLocal;
   const thumb = thumbBruta?.replace(/\?$/, "") || null;
   const [tentativa, setTentativa] = useState(0);
   const [imagemPronta, setImagemPronta] = useState(false);
@@ -321,6 +393,17 @@ function Miniatura({
   const data = doc.ultima_atualizacao
     ? new Date(doc.ultima_atualizacao).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
     : "";
+  const fotoIndisponivel = (
+    <span
+      className="album-photo-missing"
+      title="Este registro não possui uma foto vinculada no banco"
+    >
+      <span className="material-symbols-outlined" aria-hidden="true">
+        hide_image
+      </span>
+      <small>Foto indisponível</small>
+    </span>
+  );
 
   const miolo = (
     <>
@@ -333,7 +416,7 @@ function Miniatura({
           <img
             key={tentativa}
             src={thumbComTentativa}
-            alt=""
+            alt="Foto capturada do conteúdo"
             loading={prioritaria ? "eager" : "lazy"}
             fetchPriority={prioritaria ? "high" : "auto"}
             decoding="async"
@@ -349,16 +432,11 @@ function Miniatura({
             }}
           />
           {imagemFalhou && tentativa >= 2 && (
-            <span className="album-image-error" title="Não foi possível carregar a miniatura">
-              <span className="material-symbols-outlined">broken_image</span>
-              <small>Toque para abrir</small>
-            </span>
+            fotoIndisponivel
           )}
         </>
       ) : (
-        <span className="material-symbols-outlined" style={{ fontSize: 28, opacity: 0.25 }}>
-          description
-        </span>
+        fotoIndisponivel
       )}
       {doc.resumo_ia && (
         <span className="material-symbols-outlined selo-resumo" title="Resumo pronto">

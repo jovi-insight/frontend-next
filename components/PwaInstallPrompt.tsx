@@ -8,6 +8,38 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const CHAVE_DISPENSADO = "jovi_pwa_prompt_dismissed";
+const UM_ANO_EM_SEGUNDOS = 365 * 24 * 60 * 60;
+let dispensadoNestaExecucao = false;
+
+function foiDispensado() {
+  if (dispensadoNestaExecucao) return true;
+  try {
+    if (localStorage.getItem(CHAVE_DISPENSADO)) return true;
+  } catch {
+    // Em navegação privada o storage pode estar bloqueado; o cookie é o fallback.
+  }
+  try {
+    return document.cookie
+      .split("; ")
+      .some((item) => item.startsWith(`${CHAVE_DISPENSADO}=`));
+  } catch {
+    return false;
+  }
+}
+
+function registrarDispensa() {
+  dispensadoNestaExecucao = true;
+  try {
+    localStorage.setItem(CHAVE_DISPENSADO, "1");
+  } catch {
+    // O estado em memória e o cookie ainda impedem a repetição nesta navegação.
+  }
+  try {
+    document.cookie = `${CHAVE_DISPENSADO}=1; Max-Age=${UM_ANO_EM_SEGUNDOS}; Path=/; SameSite=Lax`;
+  } catch {
+    // O estado em memória continua suficiente até a próxima carga da página.
+  }
+}
 
 export default function PwaInstallPrompt() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
@@ -23,12 +55,8 @@ export default function PwaInstallPrompt() {
 
     if (isStandalone) return;
 
-    // Se o usuário dispensou recentemente (nas últimas 24h), não insiste
-    const dispensadoEm = localStorage.getItem(CHAVE_DISPENSADO);
-    if (dispensadoEm) {
-      const passadoMs = Date.now() - Number(dispensadoEm);
-      if (passadoMs < 24 * 60 * 60 * 1000) return;
-    }
+    // "Agora não" é uma escolha persistente: trocar de rota não pode reabrir o aviso.
+    if (foiDispensado()) return;
 
     // Detecção de iOS / iPadOS
     const userAgent = window.navigator.userAgent.toLowerCase();
@@ -46,21 +74,31 @@ export default function PwaInstallPrompt() {
     // Navegadores Chromium / Android
     function handleBeforeInstall(e: Event) {
       e.preventDefault();
+      if (foiDispensado()) return;
       setPromptEvent(e as BeforeInstallPromptEvent);
       setExibir(true);
     }
 
+    function handleAppInstalled() {
+      registrarDispensa();
+      setPromptEvent(null);
+      setExibir(false);
+    }
+
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
   function dispensar() {
+    registrarDispensa();
+    setPromptEvent(null);
     setExibir(false);
     setGuiaIos(false);
-    localStorage.setItem(CHAVE_DISPENSADO, String(Date.now()));
   }
 
   async function instalar() {
@@ -73,9 +111,8 @@ export default function PwaInstallPrompt() {
 
     await promptEvent.prompt();
     const escolha = await promptEvent.userChoice;
-    if (escolha.outcome === "accepted") {
-      setExibir(false);
-    }
+    // O "não" do diálogo nativo precisa ter o mesmo efeito de "Agora não".
+    if (escolha.outcome === "accepted" || escolha.outcome === "dismissed") dispensar();
   }
 
   if (!exibir) return null;
