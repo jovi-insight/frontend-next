@@ -77,6 +77,13 @@ export type SugestaoEventoCalendario = {
 
 export type AnaliseEventoCalendario = SugestaoEventoCalendario & {
   texto_extraido: string;
+  materia_id?: string | null;
+};
+
+export type EtapaTrilhaEstudo = {
+  titulo: string;
+  objetivo: string;
+  duracao_minutos: number;
 };
 
 export type NovoEventoCalendario = {
@@ -85,6 +92,11 @@ export type NovoEventoCalendario = {
   data: string;
   hora: string | null;
   materia: string | null;
+  materia_id: string | null;
+  tema: string | null;
+  assunto_sugerido: string | null;
+  trilha_estudo: EtapaTrilhaEstudo[];
+  conteudo_ids: string[];
   observacoes: string | null;
   texto_original: string | null;
 };
@@ -92,6 +104,27 @@ export type NovoEventoCalendario = {
 export type EventoCalendario = NovoEventoCalendario & {
   id: string;
   criado_em: string;
+  resumo_consolidado?: string | null;
+  conteudos?: Array<{
+    id: string;
+    pasta_id: string;
+    extracao_original: string | null;
+    resumo_ia: string | null;
+  }>;
+};
+
+export type AulaCalendario = {
+  id: string;
+  titulo: string;
+  pasta_nome: string;
+  resumo: string | null;
+  ultima_atualizacao: string | null;
+};
+
+export type MateriaCalendario = {
+  id: string;
+  nome: string;
+  aulas: AulaCalendario[];
 };
 
 export type VideoUsuario = {
@@ -180,6 +213,38 @@ export async function excluirEventoCalendario(eventoId: string): Promise<void> {
   return handle(res, "Não foi possível excluir o evento");
 }
 
+export async function listarRecursosCalendario(): Promise<MateriaCalendario[]> {
+  const res = await fetch(`${BASE_URL}/calendario/recursos`, { cache: "no-store" });
+  return handle(res, "Não foi possível carregar suas matérias e aulas");
+}
+
+export async function sugerirTrilhaCalendario(dados: {
+  materia_id: string;
+  tema: string;
+  conteudo_ids: string[];
+}): Promise<{ assunto_sugerido: string; trilha_estudo: EtapaTrilhaEstudo[] }> {
+  const res = await pedirJson("/calendario/sugerir-trilha", "POST", dados);
+  return handle(res, "Não foi possível sugerir a trilha de estudo");
+}
+
+export async function obterEventoCalendario(eventoId: string): Promise<EventoCalendario> {
+  const res = await fetch(`${BASE_URL}/calendario/eventos/${eventoId}`);
+  return handle(res, "Não foi possível carregar o evento");
+}
+
+export async function atualizarEventoCalendario(
+  eventoId: string,
+  dados: Partial<NovoEventoCalendario>,
+): Promise<EventoCalendario> {
+  const res = await pedirJson(`/calendario/eventos/${eventoId}`, "PATCH", dados);
+  return handle(res, "Não foi possível atualizar o evento");
+}
+
+export async function gerarResumoConsolidado(eventoId: string): Promise<EventoCalendario> {
+  const res = await pedirJson(`/calendario/eventos/${eventoId}/gerar-resumo`, "POST");
+  return handle(res, "Não foi possível gerar o resumo consolidado");
+}
+
 /** MP3 da narração. Idiomas: pt, en, es, fr, de, it, ja, ko, zh. */
 export async function narrar(texto: string, idioma = "pt"): Promise<Blob> {
   const res = await pedirJson("/ia/narrar", "POST", { texto, idioma });
@@ -251,6 +316,18 @@ export async function confirmarConteudo(
   return handle(res, "Falha ao confirmar o conteúdo");
 }
 
+/** Salva um scan direto na lixeira, sem exigir matéria nem aguardar sugestões. */
+export async function descartarConteudo(
+  cacheId: string,
+  textoExtraido: string,
+): Promise<Conteudo> {
+  const res = await pedirJson("/conteudo/descartar", "POST", {
+    cache_id: cacheId,
+    texto_extraido: textoExtraido,
+  });
+  return handle(res, "Falha ao salvar o documento na lixeira");
+}
+
 /**
  * Salva uma aula: várias páginas do quadro em um único conteúdo.
  *
@@ -270,6 +347,22 @@ export async function criarAula(
 
   const res = await fetch(`${BASE_URL}/conteudo/aula`, { method: "POST", body: form });
   return handle(res, "Falha ao salvar a aula");
+}
+
+/** Salva uma captura em lote direto na lixeira, sem exigir matéria. */
+export async function descartarAula(
+  imagens: Blob[],
+  textoExtraido: string,
+): Promise<Conteudo> {
+  const form = new FormData();
+  imagens.forEach((imagem, i) => form.append("imagens", imagem, `pagina-${i + 1}.jpg`));
+  form.append("texto_extraido", textoExtraido);
+
+  const res = await fetch(`${BASE_URL}/conteudo/aula/descartar`, {
+    method: "POST",
+    body: form,
+  });
+  return handle(res, "Falha ao salvar a aula na lixeira");
 }
 
 /**

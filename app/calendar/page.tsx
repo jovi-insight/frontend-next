@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import ConfirmarEventoCalendario from "@/components/ConfirmarEventoCalendario";
 import GuardaSessao from "@/components/GuardaSessao";
 import {
+  criarEventoCalendario,
   excluirEventoCalendario,
   listarEventosCalendario,
   type EventoCalendario,
+  type NovoEventoCalendario,
 } from "@/lib/api";
 import { avisar } from "@/lib/avisos";
 import { rotuloTipoEvento } from "@/lib/calendario";
@@ -47,6 +50,16 @@ function descricaoData(valor: string): string {
   }).format(dataDoIso(valor));
 }
 
+function ordenarEventos(eventos: EventoCalendario[]): EventoCalendario[] {
+  return [...eventos].sort((a, b) =>
+    `${a.data}T${a.hora ?? "23:59"}`.localeCompare(`${b.data}T${b.hora ?? "23:59"}`),
+  );
+}
+
+function tituloConteudoVinculado(texto: string | null, indice: number) {
+  return texto?.split("\n").find((linha) => linha.trim())?.trim().slice(0, 70) || `Aula ${indice + 1}`;
+}
+
 function CalendarioConteudo() {
   const hoje = useMemo(() => new Date(), []);
   const hojeIso = isoLocal(hoje);
@@ -54,6 +67,8 @@ function CalendarioConteudo() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [novoEventoAberto, setNovoEventoAberto] = useState(false);
+  const [salvandoEvento, setSalvandoEvento] = useState(false);
   const [mesVisivel, setMesVisivel] = useState(
     () => new Date(hoje.getFullYear(), hoje.getMonth(), 1),
   );
@@ -126,6 +141,24 @@ function CalendarioConteudo() {
     }
   }
 
+  async function salvarEventoManual(dados: NovoEventoCalendario) {
+    if (salvandoEvento) return;
+    setSalvandoEvento(true);
+    try {
+      const evento = await criarEventoCalendario(dados);
+      setEventos((atuais) => ordenarEventos([...atuais, evento]));
+      setDiaSelecionado(evento.data);
+      const dataEvento = dataDoIso(evento.data);
+      setMesVisivel(new Date(dataEvento.getFullYear(), dataEvento.getMonth(), 1));
+      setNovoEventoAberto(false);
+      avisar("Evento salvo no calendário.", "sucesso");
+    } catch (e) {
+      avisar((e as Error).message, "erro");
+    } finally {
+      setSalvandoEvento(false);
+    }
+  }
+
   return (
     <>
       <main className="container calendario-main">
@@ -133,12 +166,22 @@ function CalendarioConteudo() {
           <div>
             <span className="calendario-sobretitulo">Agenda acadêmica</span>
             <h1>Calendário</h1>
-            <p>O SCAN reconhece datas junto com o conteúdo e pede sua confirmação antes de salvar.</p>
+            <p>Crie um evento manualmente ou deixe o SCAN reconhecer a data para você.</p>
           </div>
-          <Link href="/" className="calendario-capturar-btn">
-            <span className="material-symbols-outlined" aria-hidden="true">document_scanner</span>
-            Abrir SCAN
-          </Link>
+          <div className="calendario-hero-acoes">
+            <button
+              type="button"
+              className="calendario-novo-btn"
+              onClick={() => setNovoEventoAberto(true)}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">add</span>
+              Novo evento
+            </button>
+            <Link href="/" className="calendario-capturar-btn">
+              <span className="material-symbols-outlined" aria-hidden="true">document_scanner</span>
+              Abrir SCAN
+            </Link>
+          </div>
         </section>
 
         <section className="calendario-painel" aria-label="Calendário mensal">
@@ -209,25 +252,53 @@ function CalendarioConteudo() {
             <div className="calendario-vazio">
               <span className="material-symbols-outlined" aria-hidden="true">event_available</span>
               <strong>{diaSelecionado ? "Nenhum evento neste dia" : "Sua agenda está livre"}</strong>
-              <p>Use o SCAN para registrar a primeira prova, avaliação ou entrega.</p>
+              <p>Adicione manualmente ou use o SCAN para registrar uma prova, avaliação ou entrega.</p>
             </div>
           ) : (
             <div className="calendario-eventos">
               {eventosExibidos.map((evento) => (
                 <article key={evento.id} className={`calendario-evento tipo-${evento.tipo}`}>
-                  <div className="calendario-evento-data" aria-hidden="true">
-                    <strong>{dataDoIso(evento.data).getDate()}</strong>
-                    <span>{new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(dataDoIso(evento.data)).replace(".", "")}</span>
-                  </div>
-                  <div className="calendario-evento-corpo">
-                    <span className="calendario-evento-tipo">{rotuloTipoEvento(evento.tipo)}</span>
-                    <h3>{evento.titulo}</h3>
-                    <p>
-                      {evento.hora ? `${evento.hora.slice(0, 5)} · ` : ""}
-                      {evento.materia || descricaoData(evento.data)}
-                    </p>
-                    {evento.observacoes && <small>{evento.observacoes}</small>}
-                  </div>
+                  <Link href={`/calendar/${evento.id}`} className="calendario-evento-link">
+                    <div className="calendario-evento-data" aria-hidden="true">
+                      <strong>{dataDoIso(evento.data).getDate()}</strong>
+                      <span>{new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(dataDoIso(evento.data)).replace(".", "")}</span>
+                    </div>
+                    <div className="calendario-evento-corpo">
+                      <span className="calendario-evento-tipo">{rotuloTipoEvento(evento.tipo)}</span>
+                      <h3>{evento.titulo}</h3>
+                      <p>
+                        {evento.hora ? `${evento.hora.slice(0, 5)} · ` : ""}
+                        {evento.materia || descricaoData(evento.data)}
+                      </p>
+                      {evento.tema && <small><strong>Tema:</strong> {evento.tema}</small>}
+                      {evento.assunto_sugerido && (
+                        <small><strong>Foco sugerido:</strong> {evento.assunto_sugerido}</small>
+                      )}
+                      {evento.observacoes && <small>{evento.observacoes}</small>}
+                      {evento.conteudos && evento.conteudos.length > 0 && (
+                        <div className="calendario-evento-aulas" aria-label="Aulas vinculadas">
+                          {evento.conteudos.map((conteudo, indice) => (
+                            <span key={conteudo.id} className="calendario-evento-aula-badge">
+                              <span className="material-symbols-outlined" aria-hidden="true">description</span>
+                              {tituloConteudoVinculado(conteudo.extracao_original, indice)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {evento.trilha_estudo && evento.trilha_estudo.length > 0 && (
+                        <div className="calendario-evento-trilha-badge">
+                          <span className="material-symbols-outlined">route</span>
+                          <span>Trilha de estudo · {evento.trilha_estudo.length} etapa{evento.trilha_estudo.length === 1 ? "" : "s"}</span>
+                        </div>
+                      )}
+                      {evento.resumo_consolidado && (
+                        <div className="calendario-evento-resumo-badge">
+                          <span className="material-symbols-outlined">summarize</span>
+                          <span>Com resumo consolidado</span>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
                   <div className="calendario-evento-acoes">
                     <button
                       type="button"
@@ -246,6 +317,15 @@ function CalendarioConteudo() {
           )}
         </section>
       </main>
+
+      {novoEventoAberto && (
+        <ConfirmarEventoCalendario
+          dataInicial={diaSelecionado ?? hojeIso}
+          salvando={salvandoEvento}
+          onCancelar={() => setNovoEventoAberto(false)}
+          onConfirmar={salvarEventoManual}
+        />
+      )}
 
       <BottomNav />
     </>
