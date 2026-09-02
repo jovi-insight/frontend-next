@@ -1003,6 +1003,33 @@ select {
 .album-image-error .material-symbols-outlined { font-size: 24px; opacity: 0.65; }
 .album-image-error small { font-size: 8px; font-weight: 700; }
 
+.album-photo-missing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  overflow: hidden;
+  background: var(--surface-low);
+  color: var(--on-surface-variant);
+  text-align: center;
+}
+
+.album-photo-missing .material-symbols-outlined {
+  font-size: 27px;
+  opacity: 0.55;
+}
+
+.album-photo-missing small {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.65px;
+  text-transform: uppercase;
+}
+
 .album-item.marcado img { transform: scale(0.88); transition: transform 0.15s; }
 
 .selo-resumo {
@@ -1024,6 +1051,9 @@ select {
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.62);
 }
 
 .marca-selecao {
@@ -2540,7 +2570,15 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   line-height: 1.6;
 }
 
-.calendario-capturar-btn {
+.calendario-hero-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.calendario-capturar-btn,
+.calendario-novo-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2548,15 +2586,19 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   min-height: 52px;
   padding: 0 20px;
   border-radius: 999px;
-  background: var(--primary);
-  color: var(--on-primary);
+  border: 0;
   font-size: 11px;
+  font-family: inherit;
   font-weight: 800;
   letter-spacing: 0.8px;
   text-decoration: none;
   text-transform: uppercase;
   white-space: nowrap;
+  cursor: pointer;
 }
+
+.calendario-novo-btn { background: var(--primary); color: var(--on-primary); }
+.calendario-capturar-btn { border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.06); color: var(--on-surface); }
 
 .calendario-painel {
   padding: clamp(14px, 3vw, 22px);
@@ -2697,6 +2739,76 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .calendario-evento small { display: block; margin-top: 5px; }
 .calendario-evento-acoes { display: flex; gap: 5px; }
 .calendario-evento-acoes button { color: var(--on-surface-variant); }
+.calendario-evento-aulas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.calendario-evento-aula-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--on-surface);
+  font-size: 10px;
+  font-weight: 500;
+}
+.calendario-evento-aula-badge .material-symbols-outlined { flex: none; font-size: 15px; }
+
+.calendario-evento-link {
+  display: contents;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.calendario-evento-link .calendario-evento-corpo:hover {
+  opacity: 0.9;
+}
+
+.calendario-evento-trilha-badge,
+.calendario-evento-resumo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: rgba(74, 144, 226, 0.15);
+  color: var(--primario);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.calendario-evento-trilha-badge .material-symbols-outlined,
+.calendario-evento-resumo-badge .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.calendario-evento-resumo-badge {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+}
+
+.calendario-evento-aulas a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--on-surface);
+  font-size: 10px;
+  text-decoration: none;
+}
+.calendario-evento-aulas .material-symbols-outlined { flex: none; font-size: 15px; }
+.calendario-evento-trilha { margin-top: 11px; font-size: 10px; }
+.calendario-evento-trilha summary { min-height: 36px; color: var(--evento-cor); cursor: pointer; font-weight: 800; }
+.calendario-evento-trilha ol { display: grid; gap: 8px; margin: 4px 0 0; padding-left: 20px; }
+.calendario-evento-trilha li { position: relative; padding: 9px 42px 9px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
+.calendario-evento-trilha li strong,
+.calendario-evento-trilha li span { display: block; }
+.calendario-evento-trilha li span { margin-top: 3px; color: var(--on-surface-variant); line-height: 1.45; }
+.calendario-evento-trilha li small { position: absolute; top: 9px; right: 9px; margin: 0; color: var(--evento-cor); }
 
 .calendario-vazio {
   display: flex;
@@ -2761,6 +2873,7 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   background: #171719;
   box-shadow: 0 26px 80px rgba(0, 0, 0, 0.55);
 }
+.evento-confirmacao.manual { width: min(760px, 100%); }
 
 .evento-confirmacao-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .evento-confirmacao-topo h2 { margin: 0; font-size: clamp(23px, 5vw, 32px); }
@@ -2773,6 +2886,7 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .evento-ia-status span { display: block; }
 .evento-ia-status span { margin-top: 2px; color: var(--on-surface-variant); }
 .evento-confirmacao-conteudo { display: grid; grid-template-columns: minmax(170px, 0.75fr) minmax(0, 1.6fr); gap: 20px; }
+.evento-confirmacao-conteudo.manual { grid-template-columns: minmax(0, 1fr); margin-top: 20px; }
 .evento-confirmacao-foto img { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; object-fit: cover; }
 .evento-confirmacao-foto details { margin-top: 10px; color: var(--on-surface-variant); font-size: 10px; }
 .evento-confirmacao-foto summary { min-height: 34px; cursor: pointer; }
@@ -2783,13 +2897,74 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .evento-campo-largo { grid-column: 1 / -1; }
 .evento-campo .form-input { min-height: 48px; padding: 12px 14px; border: 1px solid transparent; }
 .evento-campo textarea.form-input { resize: vertical; }
+.evento-campo-erro { margin: 0; color: #ef9a9a; font-size: 10px; line-height: 1.5; }
+.evento-planejamento {
+  display: grid;
+  gap: 15px;
+  margin-top: 20px;
+  padding: clamp(14px, 3vw, 20px);
+  border: 1px solid rgba(156, 208, 206, 0.2);
+  border-radius: 18px;
+  background: rgba(156, 208, 206, 0.045);
+}
+.evento-planejamento > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.evento-planejamento > header h3 { margin: 3px 0 0; font-size: 17px; }
+.evento-planejamento > header > .material-symbols-outlined { color: var(--primary); font-size: 25px; }
+.evento-aulas { padding: 13px; border-radius: 13px; background: rgba(0, 0, 0, 0.15); }
+.evento-aulas-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.evento-aulas-topo strong { font-size: 11px; }
+.evento-aulas-topo span { color: var(--primary); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.evento-aulas > p { margin: 0; color: var(--on-surface-variant); font-size: 10px; line-height: 1.5; }
+.evento-aulas-lista { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; }
+.evento-aula-opcao { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: rgba(255, 255, 255, 0.045); cursor: pointer; }
+.evento-aula-opcao:has(input:checked) { border-color: rgba(156, 208, 206, 0.35); background: rgba(156, 208, 206, 0.09); }
+.evento-aula-opcao input { flex: none; width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--primary); }
+.evento-aula-opcao > span { min-width: 0; }
+.evento-aula-opcao strong,
+.evento-aula-opcao small { display: block; overflow-wrap: anywhere; }
+.evento-aula-opcao strong { color: var(--on-surface); font-size: 10px; }
+.evento-aula-opcao small { margin-top: 3px; color: var(--on-surface-variant); font-size: 9px; }
+.evento-sugerir-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid rgba(156, 208, 206, 0.3);
+  border-radius: 999px;
+  background: rgba(156, 208, 206, 0.1);
+  color: var(--primary);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.evento-sugerir-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+.evento-sugerir-btn .material-symbols-outlined { font-size: 18px; }
+.evento-trilha-edicao { display: grid; gap: 10px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.evento-trilha-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.evento-trilha-topo strong { font-size: 11px; }
+.evento-trilha-topo button { min-height: 36px; color: var(--primary); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.evento-etapa-edicao { display: grid; grid-template-columns: 28px minmax(0, 1fr) 38px; gap: 9px; align-items: start; padding: 11px; border-radius: 13px; background: rgba(255, 255, 255, 0.045); }
+.evento-etapa-edicao > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: var(--on-primary); font-size: 10px; font-weight: 900; }
+.evento-etapa-edicao > div { display: grid; gap: 7px; }
+.evento-etapa-edicao .form-input { min-height: 42px; padding: 10px 11px; }
+.evento-etapa-edicao textarea.form-input { resize: vertical; }
+.evento-etapa-edicao > div > label { display: grid; grid-template-columns: auto 76px auto; gap: 7px; align-items: center; color: var(--on-surface-variant); font-size: 9px; }
+.evento-etapa-edicao > button { display: grid; place-items: center; width: 38px; height: 38px; color: var(--on-surface-variant); }
+.evento-etapa-edicao > button .material-symbols-outlined { font-size: 18px; }
 .evento-confirmacao-acoes { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 
 @media (max-width: 640px) {
   .calendario-main { padding-top: 16px; }
   .calendario-hero { align-items: stretch; flex-direction: column; gap: 12px; margin-bottom: 18px; }
   .calendario-hero p { margin-top: 8px; }
-  .calendario-capturar-btn { width: 100%; min-height: 48px; }
+  .calendario-hero-acoes { width: 100%; }
+  .calendario-capturar-btn,
+  .calendario-novo-btn { flex: 1 1 135px; min-height: 48px; }
   .calendario-painel { padding: 14px; border-radius: 18px; }
   .calendario-dia { min-height: 44px; border-radius: 11px; }
   .calendario-evento { grid-template-columns: 48px minmax(0, 1fr) 44px; gap: 12px; padding: 13px; }
@@ -2800,6 +2975,8 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   .evento-confirmacao-conteudo { grid-template-columns: minmax(0, 1fr); }
   .evento-confirmacao-foto { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: start; }
   .evento-confirmacao-foto details { margin-top: 0; }
+  .evento-planejamento { padding: 13px; }
+  .evento-planejamento > header h3 { font-size: 15px; }
   .evento-confirmacao-acoes { align-items: stretch; flex-direction: column-reverse; }
   .evento-confirmacao-acoes .chip { justify-content: center; width: 100%; }
 }
@@ -2822,5 +2999,6 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 
 @media (prefers-reduced-motion: reduce) {
   .calendario-capturar-btn,
+  .calendario-novo-btn,
   .calendario-dia { transition: none; }
 }
