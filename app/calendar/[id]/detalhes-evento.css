@@ -1,4 +1,12 @@
 .detalhes-evento {
+  --fundo-principal: var(--background);
+  --fundo-secundario: var(--surface-low);
+  --texto-principal: var(--on-surface);
+  --texto-secundario: var(--on-surface-variant);
+  --primario: var(--primary);
+  --primario-hover: var(--primary-variant);
+  --borda: var(--outline);
+  --erro: var(--error);
   max-width: 800px;
   margin: 0 auto;
   padding: 1rem 1rem 5rem;
@@ -8,6 +16,10 @@
 
 .detalhes-evento-loading,
 .detalhes-evento-erro {
+  --texto-principal: var(--on-surface);
+  --texto-secundario: var(--on-surface-variant);
+  --primario: var(--primary);
+  --erro: var(--error);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -44,7 +56,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: var(--primario);
-  color: white;
+  color: var(--on-primary);
   border-radius: 8px;
   text-decoration: none;
   font-weight: 500;
@@ -57,7 +69,8 @@
 
 /* Header */
 .detalhes-evento-header {
-  background: white;
+  border: 1px solid var(--card-border);
+  background: var(--surface-container-low);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1rem;
@@ -180,7 +193,8 @@
 
 /* Seções */
 .detalhes-evento-secao {
-  background: white;
+  border: 1px solid var(--card-border);
+  background: var(--surface-container-low);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1rem;
@@ -230,7 +244,7 @@
   border: none;
   border-radius: 8px;
   background: var(--primario);
-  color: white;
+  color: var(--on-primary);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -278,11 +292,7 @@
   transform: translateX(4px);
 }
 
-.detalhes-evento-conteudo-card > .material-symbols-outlined:first-child {
-  font-size: 2rem;
-  color: var(--primario);
-  flex-shrink: 0;
-}
+.detalhes-evento-conteudo-foto { width: 58px; height: 58px; }
 
 .detalhes-evento-conteudo-info {
   flex: 1;
@@ -313,65 +323,6 @@
   font-size: 1.25rem;
   color: var(--texto-secundario);
   flex-shrink: 0;
-}
-
-/* Trilha de estudo */
-.detalhes-evento-trilha {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detalhes-evento-trilha-etapa {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--fundo-secundario);
-  border-radius: 8px;
-}
-
-.trilha-etapa-numero {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: var(--primario);
-  color: white;
-  font-weight: 700;
-  font-size: 1.125rem;
-  flex-shrink: 0;
-}
-
-.trilha-etapa-conteudo {
-  flex: 1;
-  min-width: 0;
-}
-
-.trilha-etapa-conteudo h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-  color: var(--texto-principal);
-}
-
-.trilha-etapa-conteudo p {
-  margin: 0 0 0.75rem;
-  color: var(--texto-secundario);
-  font-size: 0.9375rem;
-  line-height: 1.5;
-}
-
-.trilha-etapa-duracao {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: var(--texto-secundario);
-  font-size: 0.875rem;
-}
-
-.trilha-etapa-duracao .material-symbols-outlined {
-  font-size: 1rem;
 }
 
 /* Resumo consolidado */

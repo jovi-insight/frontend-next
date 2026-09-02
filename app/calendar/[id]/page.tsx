@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import GuardaSessao from "@/components/GuardaSessao";
 import TrilhaEstudo from "@/components/TrilhaEstudo";
+import FotoConteudoCalendario from "@/components/FotoConteudoCalendario";
 import {
   obterEventoCalendario,
   gerarResumoConsolidado,
@@ -49,22 +50,22 @@ function DetalhesEventoConteudo() {
   const [gerandoResumo, setGerandoResumo] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
 
-  const buscarEvento = useCallback(async () => {
-    setCarregando(true);
-    setErro(null);
-    try {
-      const dados = await obterEventoCalendario(eventoId);
-      setEvento(dados);
-    } catch (e) {
-      setErro((e as Error).message);
-    } finally {
-      setCarregando(false);
-    }
-  }, [eventoId]);
-
   useEffect(() => {
-    void buscarEvento();
-  }, [buscarEvento]);
+    let ativo = true;
+    obterEventoCalendario(eventoId)
+      .then((dados) => {
+        if (ativo) setEvento(dados);
+      })
+      .catch((e: Error) => {
+        if (ativo) setErro(e.message);
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [eventoId]);
 
   async function gerarResumo() {
     if (gerandoResumo || !evento) return;
@@ -130,7 +131,8 @@ function DetalhesEventoConteudo() {
     );
   }
 
-  const temConteudos = evento.conteudos && evento.conteudos.length > 0;
+  const conteudos = evento.conteudos ?? [];
+  const temConteudos = conteudos.length > 0;
   const temTrilha = evento.trilha_estudo && evento.trilha_estudo.length > 0;
 
   return (
@@ -213,16 +215,20 @@ function DetalhesEventoConteudo() {
             <h2>
               <span className="material-symbols-outlined">folder_open</span>
               Conteúdos Vinculados
-              <span className="contador">{evento.conteudos.length}</span>
+              <span className="contador">{conteudos.length}</span>
             </h2>
             <div className="detalhes-evento-conteudos">
-              {evento.conteudos.map((conteudo, indice) => (
+              {conteudos.map((conteudo, indice) => (
                 <Link
                   key={conteudo.id}
                   href={`/summary/${conteudo.id}`}
                   className="detalhes-evento-conteudo-card"
                 >
-                  <span className="material-symbols-outlined">description</span>
+                  <FotoConteudoCalendario
+                    url={conteudo.imagens?.[0]?.url_storage}
+                    alt={`Foto de ${tituloConteudoVinculado(conteudo.extracao_original, indice)}`}
+                    className="detalhes-evento-conteudo-foto"
+                  />
                   <div className="detalhes-evento-conteudo-info">
                     <strong>{tituloConteudoVinculado(conteudo.extracao_original, indice)}</strong>
                     {conteudo.resumo_ia && (

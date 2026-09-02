@@ -11,6 +11,7 @@ import {
   type TipoEventoCalendario,
 } from "@/lib/api";
 import { TIPOS_EVENTO } from "@/lib/calendario";
+import FotoConteudoCalendario from "@/components/FotoConteudoCalendario";
 
 function permitePlanejamento(tipo: TipoEventoCalendario) {
   return tipo === "prova" || tipo === "avaliacao";
@@ -321,7 +322,7 @@ export default function ConfirmarEventoCalendario({
 
             <div className="evento-aulas">
               <div className="evento-aulas-topo">
-                <strong>Vincular aulas ou arquivos</strong>
+                <strong>Vincular fotos ou aulas salvas</strong>
                 {conteudoIds.length > 0 && <span>{conteudoIds.length} selecionada{conteudoIds.length === 1 ? "" : "s"}</span>}
               </div>
               {carregandoRecursos ? (
@@ -340,9 +341,19 @@ export default function ConfirmarEventoCalendario({
                         onChange={() => alternarConteudo(aula.id)}
                         disabled={salvando || sugerindo}
                       />
+                      <FotoConteudoCalendario
+                        url={aula.imagem_url}
+                        alt={`Foto de ${aula.titulo}`}
+                        className="evento-aula-foto"
+                      />
                       <span>
                         <strong>{aula.titulo}</strong>
-                        <small>{aula.pasta_nome}</small>
+                        <small>
+                          {aula.pasta_nome}
+                          {aula.quantidade_imagens > 1
+                            ? ` · ${aula.quantidade_imagens} fotos`
+                            : ""}
+                        </small>
                       </span>
                     </label>
                   ))}

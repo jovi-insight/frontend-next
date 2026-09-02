@@ -218,6 +218,7 @@ function SettingsConteudo() {
             className="chip chip-primario"
             onClick={() => {
               localStorage.removeItem("jovi_pwa_prompt_dismissed");
+              document.cookie = "jovi_pwa_prompt_dismissed=; Max-Age=0; Path=/; SameSite=Lax";
               window.location.reload();
             }}
           >

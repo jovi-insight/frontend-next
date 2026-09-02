@@ -2753,6 +2753,22 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 }
 .calendario-evento-aula-badge .material-symbols-outlined { flex: none; font-size: 15px; }
 
+.calendario-arquivo-foto {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--on-surface-variant);
+}
+.calendario-arquivo-foto img { width: 100%; height: 100%; object-fit: cover; }
+.calendario-arquivo-foto > .material-symbols-outlined { font-size: 20px; opacity: 0.55; }
+.calendario-evento-aula-foto { width: 24px; height: 24px; border-radius: 5px; }
+
 .calendario-evento-link {
   display: contents;
   text-decoration: none;
@@ -2926,10 +2942,11 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .evento-aulas-topo span { color: var(--primary); font-size: 9px; font-weight: 800; text-transform: uppercase; }
 .evento-aulas > p { margin: 0; color: var(--on-surface-variant); font-size: 10px; line-height: 1.5; }
 .evento-aulas-lista { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; }
-.evento-aula-opcao { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: rgba(255, 255, 255, 0.045); cursor: pointer; }
+.evento-aula-opcao { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: rgba(255, 255, 255, 0.045); cursor: pointer; }
 .evento-aula-opcao:has(input:checked) { border-color: rgba(156, 208, 206, 0.35); background: rgba(156, 208, 206, 0.09); }
 .evento-aula-opcao input { flex: none; width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--primary); }
-.evento-aula-opcao > span { min-width: 0; }
+.evento-aula-opcao > span:last-child { min-width: 0; }
+.evento-aula-foto { width: 46px; height: 46px; }
 .evento-aula-opcao strong,
 .evento-aula-opcao small { display: block; overflow-wrap: anywhere; }
 .evento-aula-opcao strong { color: var(--on-surface); font-size: 10px; }

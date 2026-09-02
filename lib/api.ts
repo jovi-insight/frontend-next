@@ -104,12 +104,13 @@ export type NovoEventoCalendario = {
 export type EventoCalendario = NovoEventoCalendario & {
   id: string;
   criado_em: string;
-  resumo_consolidado?: string | null;
-  conteudos?: Array<{
+  resumo_consolidado: string | null;
+  conteudos: Array<{
     id: string;
     pasta_id: string;
     extracao_original: string | null;
     resumo_ia: string | null;
+    imagens: Imagem[];
   }>;
 };
 
@@ -119,6 +120,8 @@ export type AulaCalendario = {
   pasta_nome: string;
   resumo: string | null;
   ultima_atualizacao: string | null;
+  imagem_url: string | null;
+  quantidade_imagens: number;
 };
 
 export type MateriaCalendario = {

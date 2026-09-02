@@ -1,15 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
+import FotoConteudoCalendario from "@/components/FotoConteudoCalendario";
 import {
   obterEventoCalendario,
   atualizarEventoCalendario,
   listarRecursosCalendario,
   sugerirTrilhaCalendario,
-  type EventoCalendario,
   type EtapaTrilhaEstudo,
   type MateriaCalendario,
   type TipoEventoCalendario,
@@ -27,7 +27,6 @@ function EditarEventoConteudo() {
   const router = useRouter();
   const eventoId = params.id as string;
 
-  const [evento, setEvento] = useState<EventoCalendario | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
@@ -47,11 +46,11 @@ function EditarEventoConteudo() {
   const [sugerindo, setSugerindo] = useState(false);
   const [erroSugestao, setErroSugestao] = useState<string | null>(null);
 
-  const buscarEvento = useCallback(async () => {
-    setCarregando(true);
-    try {
-      const dados = await obterEventoCalendario(eventoId);
-      setEvento(dados);
+  useEffect(() => {
+    let ativo = true;
+    obterEventoCalendario(eventoId)
+      .then((dados) => {
+        if (!ativo) return;
       setTitulo(dados.titulo);
       setTipo(dados.tipo);
       setData(dados.data);
@@ -62,17 +61,19 @@ function EditarEventoConteudo() {
       setTrilhaEstudo(dados.trilha_estudo || []);
       setObservacoes(dados.observacoes || "");
       setConteudoIds(dados.conteudos?.map((c) => c.id) || []);
-    } catch (e) {
-      avisar((e as Error).message);
-      router.push("/calendar");
-    } finally {
-      setCarregando(false);
-    }
+      })
+      .catch((e: Error) => {
+        if (!ativo) return;
+        avisar(e.message, "erro");
+        router.push("/calendar");
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+    return () => {
+      ativo = false;
+    };
   }, [eventoId, router]);
-
-  useEffect(() => {
-    void buscarEvento();
-  }, [buscarEvento]);
 
   useEffect(() => {
     let ativo = true;
@@ -288,7 +289,7 @@ function EditarEventoConteudo() {
 
             {materiaSelecionada.aulas.length > 0 && (
               <div className="form-grupo">
-                <label>Vincular aulas</label>
+                <label>Vincular fotos ou aulas salvas</label>
                 <div className="form-checkbox-grupo">
                   {materiaSelecionada.aulas.map((aula) => (
                     <label key={aula.id} className="form-checkbox-item">
@@ -297,7 +298,20 @@ function EditarEventoConteudo() {
                         checked={conteudoIds.includes(aula.id)}
                         onChange={() => alternarConteudo(aula.id)}
                       />
-                      <span>{aula.titulo}</span>
+                      <FotoConteudoCalendario
+                        url={aula.imagem_url}
+                        alt={`Foto de ${aula.titulo}`}
+                        className="form-checkbox-foto"
+                      />
+                      <span className="form-checkbox-texto">
+                        <strong>{aula.titulo}</strong>
+                        <small>
+                          {aula.pasta_nome}
+                          {aula.quantidade_imagens > 1
+                            ? ` · ${aula.quantidade_imagens} fotos`
+                            : ""}
+                        </small>
+                      </span>
                     </label>
                   ))}
                 </div>

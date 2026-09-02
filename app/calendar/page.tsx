@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ConfirmarEventoCalendario from "@/components/ConfirmarEventoCalendario";
+import FotoConteudoCalendario from "@/components/FotoConteudoCalendario";
 import GuardaSessao from "@/components/GuardaSessao";
 import {
   criarEventoCalendario,
@@ -279,7 +280,11 @@ function CalendarioConteudo() {
                         <div className="calendario-evento-aulas" aria-label="Aulas vinculadas">
                           {evento.conteudos.map((conteudo, indice) => (
                             <span key={conteudo.id} className="calendario-evento-aula-badge">
-                              <span className="material-symbols-outlined" aria-hidden="true">description</span>
+                              <FotoConteudoCalendario
+                                url={conteudo.imagens?.[0]?.url_storage}
+                                alt=""
+                                className="calendario-evento-aula-foto"
+                              />
                               {tituloConteudoVinculado(conteudo.extracao_original, indice)}
                             </span>
                           ))}

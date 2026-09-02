@@ -171,7 +171,7 @@
 
 .trilha-etapa:not(.bloqueada):not(.completa) .trilha-etapa-conteudo:hover {
   border-color: var(--primario);
-  background: white;
+  background: var(--surface-high);
 }
 
 .trilha-etapa.completa .trilha-etapa-conteudo {
@@ -193,7 +193,7 @@
 .trilha-etapa-numero {
   padding: 0.25rem 0.625rem;
   background: var(--primario);
-  color: white;
+  color: var(--on-primary);
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;

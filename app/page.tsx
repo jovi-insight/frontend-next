@@ -348,7 +348,11 @@ function CameraConteudo() {
                   PESO_CONFIANCA[eventoSugerido.analise.confianca])
             ) {
               eventoSugerido = {
-                analise: { ...sugestao, texto_extraido: analise.texto_extraido || "" },
+                analise: {
+                  ...sugestao,
+                  texto_extraido: analise.texto_extraido || "",
+                  materia_id: analise.materia_sugerida_id,
+                },
                 imagem: pagina.miniatura || pagina.imagem,
               };
             }

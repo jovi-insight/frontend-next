@@ -9,7 +9,9 @@ import {
   criarMateria,
   confirmarConteudo,
   criarAula,
-  moverConteudoParaLixeira,
+  descartarAula,
+  descartarConteudo,
+  type Conteudo,
   type Materia,
 } from "@/lib/api";
 import { janelaDeAula } from "@/lib/paginas-aula";
@@ -135,10 +137,18 @@ function OrganizeConteudo() {
   }
 
   async function confirmar() {
-    if (!escolhida || !(scan || (ehAula && aula))) return;
+    if (!(scan || (ehAula && aula))) return;
+    if (!salvarNaLixeira && !escolhida) return;
     setSalvando(true);
     setErro(null);
     try {
+      const guardarResultado = (conteudo: Conteudo, materiaNome: string | null) => {
+        gravarLocalStorage(
+          "jovi_last_scan_result",
+          JSON.stringify({ ...conteudo, materia_nome: materiaNome }),
+        );
+      };
+
       if (ehAula && aula) {
         // As imagens vivem em memória: recarregar esta página as perde, e a
         // rota exige ao menos uma. O texto continua aqui (localStorage), então
@@ -150,19 +160,19 @@ function OrganizeConteudo() {
               : "As fotos da aula se perderam ao recarregar a página. Capture de novo.",
           );
         }
-        const conteudo = await criarAula(janelaDeAula.blobs, escolhida, texto);
-        const materia = materias.find((m) => m.id === escolhida);
-        gravarLocalStorage(
-          "jovi_last_scan_result",
-          JSON.stringify({ ...conteudo, materia_nome: materia?.nome ?? null }),
-        );
-        janelaDeAula.blobs = [];
         if (salvarNaLixeira) {
-          await moverConteudoParaLixeira(conteudo.id);
+          const conteudo = await descartarAula(janelaDeAula.blobs, texto);
+          guardarResultado(conteudo, "Sem matéria");
+          janelaDeAula.blobs = [];
           avisar("Conteúdo salvo direto na Lixeira. Ele pode ser restaurado.", "sucesso");
           router.push("/library?lixeira=1");
           return;
         }
+
+        const conteudo = await criarAula(janelaDeAula.blobs, escolhida!, texto);
+        const materia = materias.find((m) => m.id === escolhida);
+        guardarResultado(conteudo, materia?.nome ?? null);
+        janelaDeAula.blobs = [];
         avisar(
           aula.origem === "transcricao"
             ? "Aula salva. O resumo sai da transcrição inteira."
@@ -173,20 +183,19 @@ function OrganizeConteudo() {
         return;
       }
       if (!scan) return;
-      const conteudo = await confirmarConteudo(scan.cache_id, escolhida, texto);
-      const materia = materias.find((m) => m.id === escolhida);
-      // O ConteudoOut não traz o nome da matéria; anexar aqui evita uma
-      // chamada extra só para o cabeçalho do resumo.
-      gravarLocalStorage(
-        "jovi_last_scan_result",
-        JSON.stringify({ ...conteudo, materia_nome: materia?.nome ?? null }),
-      );
       if (salvarNaLixeira) {
-        await moverConteudoParaLixeira(conteudo.id);
+        const conteudo = await descartarConteudo(scan.cache_id, texto);
+        guardarResultado(conteudo, "Sem matéria");
         avisar("Documento salvo direto na Lixeira. Ele pode ser restaurado.", "sucesso");
         router.push("/library?lixeira=1");
         return;
       }
+
+      const conteudo = await confirmarConteudo(scan.cache_id, escolhida!, texto);
+      const materia = materias.find((m) => m.id === escolhida);
+      // O ConteudoOut não traz o nome da matéria; anexar aqui evita uma
+      // chamada extra só para o cabeçalho do resumo.
+      guardarResultado(conteudo, materia?.nome ?? null);
       avisar("Documento salvo no banco.", "sucesso");
       router.push(`/summary/${conteudo.id}`);
     } catch (e) {
@@ -328,7 +337,7 @@ function OrganizeConteudo() {
           </section>
         )}
 
-        <section style={{ marginBottom: 36 }}>
+        {!salvarNaLixeira && <section style={{ marginBottom: 36 }}>
           <div className="section-header" style={{ marginBottom: 16 }}>
             <div className="section-title">
               <div style={{ width: 4, height: 24, backgroundColor: "var(--primary)" }} />
@@ -418,7 +427,7 @@ function OrganizeConteudo() {
               </button>
             )}
           </div>
-        </section>
+        </section>}
 
         {erro && (
           <p role="alert" style={{ color: "var(--error)", fontSize: 12, marginBottom: 16 }}>
@@ -430,11 +439,11 @@ function OrganizeConteudo() {
           type="button"
           className={`quiz-gerar${salvando ? " is-loading" : ""}`}
           onClick={confirmar}
-          disabled={!escolhida || salvando}
+          disabled={salvando || (!salvarNaLixeira && !escolhida)}
           style={{ width: "100%", justifyContent: "center", padding: "18px" }}
         >
           {salvando ? (
-            "Buscando vídeos recomendados…"
+            salvarNaLixeira ? "Salvando na Lixeira…" : "Buscando vídeos recomendados…"
           ) : (
             <>
               {salvarNaLixeira ? "Salvar na Lixeira" : "Confirmar e salvar"}
