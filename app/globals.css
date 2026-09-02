@@ -2898,6 +2898,16 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .evento-campo .form-input { min-height: 48px; padding: 12px 14px; border: 1px solid transparent; }
 .evento-campo textarea.form-input { resize: vertical; }
 .evento-campo-erro { margin: 0; color: #ef9a9a; font-size: 10px; line-height: 1.5; }
+.evento-campo-info { 
+  margin: 0; 
+  padding: 12px; 
+  background: rgba(74, 144, 226, 0.1); 
+  color: var(--on-surface-variant); 
+  font-size: 11px; 
+  line-height: 1.5; 
+  border-radius: 8px;
+  border-left: 3px solid var(--primario);
+}
 .evento-planejamento {
   display: grid;
   gap: 15px;
