@@ -3,7 +3,7 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v8-planejamento-provas";
+const CACHE_NAME = "insight-pwa-v9-lembretes-calendario";
 const IMAGE_CACHE_NAME = "insight-images-v1";
 const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
 const ASSETS_TO_CACHE = [
@@ -104,5 +104,21 @@ self.addEventListener("fetch", (event) => {
           return new Response("Offline", { status: 503, statusText: "Offline" });
         });
       })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const destino = event.notification.data?.url || "/calendar";
+  const url = new URL(destino, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((janelas) => {
+      const existente = janelas.find((janela) => janela.url.startsWith(self.location.origin));
+      if (existente) {
+        return existente.navigate(url).then((janela) => janela?.focus());
+      }
+      return self.clients.openWindow(url);
+    }),
   );
 });

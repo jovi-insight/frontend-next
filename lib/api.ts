@@ -96,6 +96,7 @@ export type NovoEventoCalendario = {
   tema: string | null;
   assunto_sugerido: string | null;
   trilha_estudo: EtapaTrilhaEstudo[];
+  lembretes_minutos: number[];
   conteudo_ids: string[];
   observacoes: string | null;
   texto_original: string | null;
@@ -128,6 +129,17 @@ export type MateriaCalendario = {
   id: string;
   nome: string;
   aulas: AulaCalendario[];
+};
+
+export type LembreteCalendarioPendente = {
+  evento_id: string;
+  titulo: string;
+  tipo: TipoEventoCalendario;
+  data: string;
+  hora: string | null;
+  materia: string | null;
+  minutos_antes: number;
+  disparo_em: string;
 };
 
 export type VideoUsuario = {
@@ -246,6 +258,11 @@ export async function atualizarEventoCalendario(
 export async function gerarResumoConsolidado(eventoId: string): Promise<EventoCalendario> {
   const res = await pedirJson(`/calendario/eventos/${eventoId}/gerar-resumo`, "POST");
   return handle(res, "Não foi possível gerar o resumo consolidado");
+}
+
+export async function consumirLembretesCalendario(): Promise<LembreteCalendarioPendente[]> {
+  const res = await pedirJson("/calendario/lembretes/consumir", "POST");
+  return handle(res, "Não foi possível consultar os lembretes");
 }
 
 /** MP3 da narração. Idiomas: pt, en, es, fr, de, it, ja, ko, zh. */

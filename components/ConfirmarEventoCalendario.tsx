@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { TIPOS_EVENTO } from "@/lib/calendario";
 import FotoConteudoCalendario from "@/components/FotoConteudoCalendario";
+import SeletorLembretes from "@/components/SeletorLembretes";
 
 function permitePlanejamento(tipo: TipoEventoCalendario) {
   return tipo === "prova" || tipo === "avaliacao";
@@ -44,6 +45,7 @@ export default function ConfirmarEventoCalendario({
   const [assuntoSugerido, setAssuntoSugerido] = useState("");
   const [trilhaEstudo, setTrilhaEstudo] = useState<EtapaTrilhaEstudo[]>([]);
   const [observacoes, setObservacoes] = useState(analise?.observacoes ?? "");
+  const [lembretesMinutos, setLembretesMinutos] = useState<number[]>([1440]);
   const [recursos, setRecursos] = useState<MateriaCalendario[]>([]);
   const [carregandoRecursos, setCarregandoRecursos] = useState(true);
   const [erroRecursos, setErroRecursos] = useState<string | null>(null);
@@ -168,6 +170,7 @@ export default function ConfirmarEventoCalendario({
       tema: planejamentoAtivo ? tema.trim() || null : null,
       assunto_sugerido: planejamentoAtivo ? assuntoSugerido.trim() || null : null,
       trilha_estudo: planejamentoAtivo ? trilhaEstudo : [],
+      lembretes_minutos: lembretesMinutos,
       conteudo_ids: planejamentoAtivo ? conteudoIds : [],
       observacoes: observacoes.trim() || null,
       texto_original: analise?.texto_extraido || null,
@@ -297,6 +300,12 @@ export default function ConfirmarEventoCalendario({
             </label>
           </div>
         </div>
+
+        <SeletorLembretes
+          valores={lembretesMinutos}
+          onChange={setLembretesMinutos}
+          disabled={salvando}
+        />
 
         {planejamentoAtivo && (
           <section className="evento-planejamento" aria-labelledby="evento-planejamento-titulo">

@@ -77,6 +77,10 @@
   gap: 1.5rem;
 }
 
+.editar-evento-form > .evento-lembretes {
+  margin-top: 0;
+}
+
 .form-grupo {
   display: flex;
   flex-direction: column;

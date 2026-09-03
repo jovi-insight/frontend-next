@@ -12,9 +12,10 @@ import {
   listarEventosCalendario,
   type EventoCalendario,
   type NovoEventoCalendario,
+  type TipoEventoCalendario,
 } from "@/lib/api";
 import { avisar } from "@/lib/avisos";
-import { rotuloTipoEvento } from "@/lib/calendario";
+import { TIPOS_EVENTO, rotuloLembrete, rotuloTipoEvento } from "@/lib/calendario";
 
 const DIAS_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -57,6 +58,21 @@ function ordenarEventos(eventos: EventoCalendario[]): EventoCalendario[] {
   );
 }
 
+function diferencaDias(data: string, referencia: string): number {
+  const atual = dataDoIso(referencia).getTime();
+  const destino = dataDoIso(data).getTime();
+  return Math.round((destino - atual) / 86_400_000);
+}
+
+function rotuloPrazo(data: string, referencia: string): string {
+  const dias = diferencaDias(data, referencia);
+  if (dias === 0) return "Hoje";
+  if (dias === 1) return "Amanhã";
+  if (dias > 1) return `Em ${dias} dias`;
+  if (dias === -1) return "Ontem";
+  return `Há ${Math.abs(dias)} dias`;
+}
+
 function tituloConteudoVinculado(texto: string | null, indice: number) {
   return texto?.split("\n").find((linha) => linha.trim())?.trim().slice(0, 70) || `Aula ${indice + 1}`;
 }
@@ -74,6 +90,9 @@ function CalendarioConteudo() {
     () => new Date(hoje.getFullYear(), hoje.getMonth(), 1),
   );
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+  const [visao, setVisao] = useState<"mes" | "agenda">("mes");
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | TipoEventoCalendario>("todos");
+  const [filtroMateria, setFiltroMateria] = useState("todas");
 
   const buscarEventos = useCallback(async () => {
     setCarregando(true);
@@ -104,19 +123,51 @@ function CalendarioConteudo() {
     };
   }, []);
 
+  const materias = useMemo(
+    () => [...new Set(eventos.map((evento) => evento.materia).filter(Boolean) as string[])].sort(
+      (a, b) => a.localeCompare(b, "pt-BR"),
+    ),
+    [eventos],
+  );
+  const eventosFiltrados = useMemo(
+    () =>
+      eventos.filter(
+        (evento) =>
+          (filtroTipo === "todos" || evento.tipo === filtroTipo) &&
+          (filtroMateria === "todas" || evento.materia === filtroMateria),
+      ),
+    [eventos, filtroMateria, filtroTipo],
+  );
   const dias = useMemo(() => diasDoCalendario(mesVisivel), [mesVisivel]);
-  const quantidadePorDia = useMemo(() => {
-    const mapa = new Map<string, number>();
-    eventos.forEach((evento) => mapa.set(evento.data, (mapa.get(evento.data) ?? 0) + 1));
+  const eventosPorDia = useMemo(() => {
+    const mapa = new Map<string, EventoCalendario[]>();
+    eventosFiltrados.forEach((evento) => mapa.set(evento.data, [...(mapa.get(evento.data) ?? []), evento]));
     return mapa;
-  }, [eventos]);
+  }, [eventosFiltrados]);
   const eventosExibidos = useMemo(
     () =>
       diaSelecionado
-        ? eventos.filter((evento) => evento.data === diaSelecionado)
-        : eventos.filter((evento) => evento.data >= hojeIso),
-    [diaSelecionado, eventos, hojeIso],
+        ? eventosFiltrados.filter((evento) => evento.data === diaSelecionado)
+        : eventosFiltrados.filter((evento) => evento.data >= hojeIso),
+    [diaSelecionado, eventosFiltrados, hojeIso],
   );
+  const eventosFuturos = useMemo(
+    () => ordenarEventos(eventos.filter((evento) => evento.data >= hojeIso)),
+    [eventos, hojeIso],
+  );
+  const proximoEvento = eventosFuturos[0] ?? null;
+  const limiteSeteDias = useMemo(() => {
+    const limite = new Date(hoje);
+    limite.setDate(limite.getDate() + 7);
+    return isoLocal(limite);
+  }, [hoje]);
+  const proximosSeteDias = eventosFuturos.filter((evento) => evento.data <= limiteSeteDias).length;
+  const lembretesAtivos = eventosFuturos.reduce(
+    (total, evento) => total + (evento.lembretes_minutos?.length ?? 0),
+    0,
+  );
+  const prefixoMes = `${mesVisivel.getFullYear()}-${String(mesVisivel.getMonth() + 1).padStart(2, "0")}`;
+  const eventosNoMes = eventosFiltrados.filter((evento) => evento.data.startsWith(prefixoMes)).length;
 
   const tituloMes = new Intl.DateTimeFormat("pt-BR", {
     month: "long",
@@ -126,6 +177,12 @@ function CalendarioConteudo() {
   function mudarMes(delta: number) {
     setMesVisivel((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
     setDiaSelecionado(null);
+  }
+
+  function irParaHoje() {
+    setMesVisivel(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+    setDiaSelecionado(hojeIso);
+    setVisao("mes");
   }
 
   async function excluir(evento: EventoCalendario) {
@@ -185,50 +242,140 @@ function CalendarioConteudo() {
           </div>
         </section>
 
-        <section className="calendario-painel" aria-label="Calendário mensal">
-          <div className="calendario-mes-topo">
-            <button type="button" onClick={() => mudarMes(-1)} aria-label="Mês anterior">
-              <span className="material-symbols-outlined">chevron_left</span>
+        <section className="calendario-resumo" aria-label="Resumo da agenda">
+          {proximoEvento ? (
+            <Link
+              href={`/calendar/${proximoEvento.id}`}
+              className={`calendario-proximo tipo-${proximoEvento.tipo}`}
+            >
+              <div className="calendario-proximo-icone">
+                <span className="material-symbols-outlined" aria-hidden="true">upcoming</span>
+              </div>
+              <div>
+                <span>Próximo compromisso</span>
+                <strong>{proximoEvento.titulo}</strong>
+                <small>
+                  {rotuloPrazo(proximoEvento.data, hojeIso)}
+                  {proximoEvento.materia ? ` · ${proximoEvento.materia}` : ""}
+                </small>
+              </div>
+              <span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+            </Link>
+          ) : (
+            <button type="button" className="calendario-proximo vazio" onClick={() => setNovoEventoAberto(true)}>
+              <div className="calendario-proximo-icone">
+                <span className="material-symbols-outlined" aria-hidden="true">event_available</span>
+              </div>
+              <div>
+                <span>Próximo compromisso</span>
+                <strong>Agenda livre</strong>
+                <small>Toque para adicionar um evento</small>
+              </div>
+              <span className="material-symbols-outlined" aria-hidden="true">add</span>
             </button>
-            <h2>{tituloMes}</h2>
-            <button type="button" onClick={() => mudarMes(1)} aria-label="Próximo mês">
-              <span className="material-symbols-outlined">chevron_right</span>
+          )}
+          <div className="calendario-indicadores">
+            <article>
+              <span className="material-symbols-outlined" aria-hidden="true">date_range</span>
+              <div><strong>{eventosNoMes}</strong><small>neste mês</small></div>
+            </article>
+            <article>
+              <span className="material-symbols-outlined" aria-hidden="true">pace</span>
+              <div><strong>{proximosSeteDias}</strong><small>nos próximos 7 dias</small></div>
+            </article>
+            <article>
+              <span className="material-symbols-outlined" aria-hidden="true">notifications_active</span>
+              <div><strong>{lembretesAtivos}</strong><small>lembretes ativos</small></div>
+            </article>
+          </div>
+        </section>
+
+        <section className="calendario-controles" aria-label="Visualização e filtros">
+          <div className="calendario-visoes" aria-label="Visualização">
+            <button type="button" className={visao === "mes" ? "ativo" : ""} aria-pressed={visao === "mes"} onClick={() => setVisao("mes")}>
+              <span className="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+              Mês
+            </button>
+            <button type="button" className={visao === "agenda" ? "ativo" : ""} aria-pressed={visao === "agenda"} onClick={() => { setVisao("agenda"); setDiaSelecionado(null); }}>
+              <span className="material-symbols-outlined" aria-hidden="true">view_agenda</span>
+              Agenda
             </button>
           </div>
 
-          <div className="calendario-semana" aria-hidden="true">
-            {DIAS_SEMANA.map((dia, indice) => <span key={`${dia}-${indice}`}>{dia}</span>)}
+          <div className="calendario-filtros-tipo" aria-label="Filtrar por tipo">
+            <button type="button" className={filtroTipo === "todos" ? "ativo" : ""} aria-pressed={filtroTipo === "todos"} onClick={() => setFiltroTipo("todos")}>Todos</button>
+            {TIPOS_EVENTO.slice(0, 4).map((item) => (
+              <button key={item.valor} type="button" className={`tipo-${item.valor}${filtroTipo === item.valor ? " ativo" : ""}`} aria-pressed={filtroTipo === item.valor} onClick={() => setFiltroTipo(item.valor)}>
+                {item.rotulo}
+              </button>
+            ))}
           </div>
-          <div className="calendario-grade">
-            {dias.map(({ data, iso, foraDoMes }) => {
-              const quantidade = quantidadePorDia.get(iso) ?? 0;
-              const selecionado = diaSelecionado === iso;
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  className={`calendario-dia${foraDoMes ? " fora" : ""}${
-                    iso === hojeIso ? " hoje" : ""
-                  }${selecionado ? " selecionado" : ""}${quantidade ? " com-evento" : ""}`}
-                  onClick={() => setDiaSelecionado(selecionado ? null : iso)}
-                  aria-pressed={selecionado}
-                  aria-label={`${descricaoData(iso)}${
-                    quantidade ? `, ${quantidade} ${quantidade === 1 ? "evento" : "eventos"}` : ""
-                  }`}
-                >
-                  <span>{data.getDate()}</span>
-                  {quantidade > 0 && <i aria-hidden="true">{quantidade > 1 ? quantidade : ""}</i>}
-                </button>
-              );
-            })}
+
+          <div className="calendario-filtros-finais">
+            <label>
+              <span className="material-symbols-outlined" aria-hidden="true">menu_book</span>
+              <select value={filtroMateria} onChange={(e) => setFiltroMateria(e.target.value)} aria-label="Filtrar por matéria">
+                <option value="todas">Todas as matérias</option>
+                {materias.map((materia) => <option key={materia} value={materia}>{materia}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={irParaHoje}>Hoje</button>
           </div>
         </section>
+
+        {visao === "mes" && (
+          <section className="calendario-painel" aria-label="Calendário mensal">
+            <div className="calendario-mes-topo">
+              <button type="button" onClick={() => mudarMes(-1)} aria-label="Mês anterior">
+                <span className="material-symbols-outlined">chevron_left</span>
+              </button>
+              <h2>{tituloMes}</h2>
+              <button type="button" onClick={() => mudarMes(1)} aria-label="Próximo mês">
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
+
+            <div className="calendario-semana" aria-hidden="true">
+              {DIAS_SEMANA.map((dia, indice) => <span key={`${dia}-${indice}`}>{dia}</span>)}
+            </div>
+            <div className="calendario-grade">
+              {dias.map(({ data, iso, foraDoMes }) => {
+                const eventosDia = eventosPorDia.get(iso) ?? [];
+                const quantidade = eventosDia.length;
+                const tipos = [...new Set(eventosDia.map((evento) => evento.tipo))].slice(0, 3);
+                const selecionado = diaSelecionado === iso;
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    className={`calendario-dia${foraDoMes ? " fora" : ""}${
+                      iso === hojeIso ? " hoje" : ""
+                    }${selecionado ? " selecionado" : ""}${quantidade ? " com-evento" : ""}`}
+                    onClick={() => setDiaSelecionado(selecionado ? null : iso)}
+                    aria-pressed={selecionado}
+                    aria-label={`${descricaoData(iso)}${
+                      quantidade ? `, ${quantidade} ${quantidade === 1 ? "evento" : "eventos"}` : ""
+                    }`}
+                  >
+                    <span>{data.getDate()}</span>
+                    {quantidade > 0 && (
+                      <span className="calendario-dia-eventos" aria-hidden="true">
+                        {tipos.map((tipo) => <i key={tipo} className={`tipo-${tipo}`} />)}
+                        {quantidade > 3 && <b>+{quantidade - 3}</b>}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <section className="calendario-agenda">
           <div className="calendario-agenda-topo">
             <div>
               <span className="calendario-sobretitulo">Sua agenda</span>
-              <h2>{diaSelecionado ? descricaoData(diaSelecionado) : "Próximos eventos"}</h2>
+              <h2>{diaSelecionado ? descricaoData(diaSelecionado) : visao === "agenda" ? "Agenda completa" : "Próximos eventos"}</h2>
             </div>
             {diaSelecionado && (
               <button type="button" className="link-limpo text-primary" onClick={() => setDiaSelecionado(null)}>
@@ -251,9 +398,26 @@ function CalendarioConteudo() {
             </div>
           ) : eventosExibidos.length === 0 ? (
             <div className="calendario-vazio">
-              <span className="material-symbols-outlined" aria-hidden="true">event_available</span>
-              <strong>{diaSelecionado ? "Nenhum evento neste dia" : "Sua agenda está livre"}</strong>
-              <p>Adicione manualmente ou use o SCAN para registrar uma prova, avaliação ou entrega.</p>
+              <span className="material-symbols-outlined" aria-hidden="true">
+                {filtroTipo !== "todos" || filtroMateria !== "todas" ? "filter_alt_off" : "event_available"}
+              </span>
+              <strong>
+                {filtroTipo !== "todos" || filtroMateria !== "todas"
+                  ? "Nenhum evento com esses filtros"
+                  : diaSelecionado
+                    ? "Nenhum evento neste dia"
+                    : "Sua agenda está livre"}
+              </strong>
+              <p>
+                {filtroTipo !== "todos" || filtroMateria !== "todas"
+                  ? "Limpe os filtros para visualizar toda a sua agenda."
+                  : "Adicione manualmente ou use o SCAN para registrar uma prova, avaliação ou entrega."}
+              </p>
+              {(filtroTipo !== "todos" || filtroMateria !== "todas") && (
+                <button type="button" className="chip" onClick={() => { setFiltroTipo("todos"); setFiltroMateria("todas"); }}>
+                  Limpar filtros
+                </button>
+              )}
             </div>
           ) : (
             <div className="calendario-eventos">
@@ -265,7 +429,12 @@ function CalendarioConteudo() {
                       <span>{new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(dataDoIso(evento.data)).replace(".", "")}</span>
                     </div>
                     <div className="calendario-evento-corpo">
-                      <span className="calendario-evento-tipo">{rotuloTipoEvento(evento.tipo)}</span>
+                      <div className="calendario-evento-meta-topo">
+                        <span className="calendario-evento-tipo">{rotuloTipoEvento(evento.tipo)}</span>
+                        <span className={`calendario-evento-prazo${diferencaDias(evento.data, hojeIso) <= 3 ? " urgente" : ""}`}>
+                          {rotuloPrazo(evento.data, hojeIso)}
+                        </span>
+                      </div>
                       <h3>{evento.titulo}</h3>
                       <p>
                         {evento.hora ? `${evento.hora.slice(0, 5)} · ` : ""}
@@ -294,6 +463,17 @@ function CalendarioConteudo() {
                         <div className="calendario-evento-trilha-badge">
                           <span className="material-symbols-outlined">route</span>
                           <span>Trilha de estudo · {evento.trilha_estudo.length} etapa{evento.trilha_estudo.length === 1 ? "" : "s"}</span>
+                        </div>
+                      )}
+                      {evento.lembretes_minutos?.length > 0 && (
+                        <div className="calendario-evento-lembrete-badge">
+                          <span className="material-symbols-outlined">notifications_active</span>
+                          <span>
+                            {rotuloLembrete(evento.lembretes_minutos[0])}
+                            {evento.lembretes_minutos.length > 1
+                              ? ` +${evento.lembretes_minutos.length - 1}`
+                              : ""}
+                          </span>
                         </div>
                       )}
                       {evento.resumo_consolidado && (

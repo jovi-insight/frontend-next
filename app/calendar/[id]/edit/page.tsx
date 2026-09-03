@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import GuardaSessao from "@/components/GuardaSessao";
 import FotoConteudoCalendario from "@/components/FotoConteudoCalendario";
+import SeletorLembretes from "@/components/SeletorLembretes";
 import {
   obterEventoCalendario,
   atualizarEventoCalendario,
@@ -40,6 +41,7 @@ function EditarEventoConteudo() {
   const [assuntoSugerido, setAssuntoSugerido] = useState("");
   const [trilhaEstudo, setTrilhaEstudo] = useState<EtapaTrilhaEstudo[]>([]);
   const [observacoes, setObservacoes] = useState("");
+  const [lembretesMinutos, setLembretesMinutos] = useState<number[]>([]);
 
   const [recursos, setRecursos] = useState<MateriaCalendario[]>([]);
   const [carregandoRecursos, setCarregandoRecursos] = useState(true);
@@ -60,6 +62,7 @@ function EditarEventoConteudo() {
       setAssuntoSugerido(dados.assunto_sugerido || "");
       setTrilhaEstudo(dados.trilha_estudo || []);
       setObservacoes(dados.observacoes || "");
+      setLembretesMinutos(dados.lembretes_minutos || []);
       setConteudoIds(dados.conteudos?.map((c) => c.id) || []);
       })
       .catch((e: Error) => {
@@ -174,6 +177,7 @@ function EditarEventoConteudo() {
         tema: tema.trim() || null,
         assunto_sugerido: assuntoSugerido.trim() || null,
         trilha_estudo: trilhaEstudo.length > 0 ? trilhaEstudo : [],
+        lembretes_minutos: lembretesMinutos,
         conteudo_ids: conteudoIds,
         observacoes: observacoes.trim() || null,
       });
@@ -254,6 +258,12 @@ function EditarEventoConteudo() {
             />
           </div>
         </div>
+
+        <SeletorLembretes
+          valores={lembretesMinutos}
+          onChange={setLembretesMinutos}
+          disabled={salvando}
+        />
 
         <div className="form-grupo">
           <label htmlFor="materia">Matéria</label>

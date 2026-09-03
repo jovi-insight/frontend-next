@@ -2600,6 +2600,137 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .calendario-novo-btn { background: var(--primary); color: var(--on-primary); }
 .calendario-capturar-btn { border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.06); color: var(--on-surface); }
 
+.calendario-resumo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.calendario-proximo {
+  --evento-cor: var(--primary);
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 106px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--evento-cor) 34%, transparent);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--evento-cor) 18%, transparent), transparent 44%),
+    var(--surface-container-low);
+  color: var(--on-surface);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.calendario-proximo.tipo-prova { --evento-cor: #ef8f8f; }
+.calendario-proximo.tipo-avaliacao { --evento-cor: #d2a8ff; }
+.calendario-proximo.tipo-trabalho { --evento-cor: #f2c66d; }
+.calendario-proximo.tipo-atividade { --evento-cor: #79caa1; }
+.calendario-proximo-icone {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--evento-cor) 17%, transparent);
+  color: var(--evento-cor);
+}
+.calendario-proximo-icone .material-symbols-outlined { font-size: 27px; }
+.calendario-proximo > div:nth-child(2) { min-width: 0; }
+.calendario-proximo > div:nth-child(2) > span,
+.calendario-proximo > div:nth-child(2) > strong,
+.calendario-proximo > div:nth-child(2) > small { display: block; }
+.calendario-proximo > div:nth-child(2) > span { color: var(--evento-cor); font-size: 9px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; }
+.calendario-proximo > div:nth-child(2) > strong { margin-top: 4px; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.calendario-proximo > div:nth-child(2) > small { margin-top: 4px; color: var(--on-surface-variant); font-size: 10px; }
+.calendario-proximo > .material-symbols-outlined { color: var(--evento-cor); }
+
+.calendario-indicadores {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.calendario-indicadores article {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.calendario-indicadores .material-symbols-outlined { color: var(--primary); font-size: 21px; }
+.calendario-indicadores strong,
+.calendario-indicadores small { display: block; }
+.calendario-indicadores strong { font-size: 21px; line-height: 1; }
+.calendario-indicadores small { margin-top: 4px; color: var(--on-surface-variant); font-size: 8px; line-height: 1.3; }
+
+.calendario-controles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(28, 28, 30, 0.48);
+}
+.calendario-visoes,
+.calendario-filtros-tipo,
+.calendario-filtros-finais { display: flex; align-items: center; gap: 5px; }
+.calendario-visoes { padding: 3px; border-radius: 12px; background: rgba(0, 0, 0, 0.22); }
+.calendario-visoes button,
+.calendario-filtros-tipo button,
+.calendario-filtros-finais > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--on-surface-variant);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.calendario-visoes button.ativo { background: var(--primary); color: var(--on-primary); }
+.calendario-visoes .material-symbols-outlined { font-size: 16px; }
+.calendario-filtros-tipo { min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.calendario-filtros-tipo::-webkit-scrollbar { display: none; }
+.calendario-filtros-tipo button { border-color: rgba(255, 255, 255, 0.08); }
+.calendario-filtros-tipo button.ativo { border-color: var(--primary); background: rgba(156, 208, 206, 0.1); color: var(--on-surface); }
+.calendario-filtros-tipo button.tipo-prova.ativo { border-color: #ef8f8f; color: #ffc1c1; }
+.calendario-filtros-tipo button.tipo-avaliacao.ativo { border-color: #d2a8ff; color: #e5c9ff; }
+.calendario-filtros-tipo button.tipo-trabalho.ativo { border-color: #f2c66d; color: #ffe0a0; }
+.calendario-filtros-tipo button.tipo-atividade.ativo { border-color: #79caa1; color: #aaf0ca; }
+.calendario-filtros-finais { margin-left: auto; }
+.calendario-filtros-finais label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.calendario-filtros-finais label .material-symbols-outlined { color: var(--primary); font-size: 16px; }
+.calendario-filtros-finais select { max-width: 150px; border: 0; outline: 0; background: transparent; color: var(--on-surface); font: inherit; font-size: 9px; font-weight: 700; }
+.calendario-filtros-finais select option { background: #202022; }
+.calendario-filtros-finais > button { border-color: rgba(255, 255, 255, 0.1); color: var(--primary); }
+
 .calendario-painel {
   padding: clamp(14px, 3vw, 22px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2674,23 +2805,21 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .calendario-dia.hoje { border-color: rgba(156, 208, 206, 0.55); }
 .calendario-dia.selecionado { background: var(--primary); color: var(--on-primary); }
 
-.calendario-dia i {
+.calendario-dia-eventos {
   position: absolute;
   bottom: 6px;
-  display: grid;
-  place-items: center;
-  min-width: 6px;
-  height: 6px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--primary);
-  color: var(--on-primary);
-  font-size: 7px;
-  font-style: normal;
-  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
-
-.calendario-dia.selecionado i { background: var(--on-primary); color: var(--primary); }
+.calendario-dia-eventos i { width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+.calendario-dia-eventos i.tipo-prova { background: #ef8f8f; }
+.calendario-dia-eventos i.tipo-avaliacao { background: #d2a8ff; }
+.calendario-dia-eventos i.tipo-trabalho { background: #f2c66d; }
+.calendario-dia-eventos i.tipo-atividade { background: #79caa1; }
+.calendario-dia-eventos b { color: var(--on-surface-variant); font-size: 7px; }
+.calendario-dia.selecionado .calendario-dia-eventos i { background: var(--on-primary); }
+.calendario-dia.selecionado .calendario-dia-eventos b { color: var(--on-primary); }
 
 .calendario-agenda { margin-top: 24px; }
 .calendario-agenda-topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
@@ -2710,7 +2839,9 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   border-left: 3px solid var(--evento-cor);
   border-radius: 16px;
   background: rgba(28, 28, 30, 0.5);
+  transition: border-color 0.2s, transform 0.2s, background 0.2s;
 }
+.calendario-evento:hover { border-color: color-mix(in srgb, var(--evento-cor) 34%, transparent); background: rgba(34, 34, 37, 0.72); transform: translateY(-1px); }
 
 .calendario-evento.tipo-prova { --evento-cor: #ef8f8f; }
 .calendario-evento.tipo-avaliacao { --evento-cor: #d2a8ff; }
@@ -2733,6 +2864,9 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .calendario-evento-data span { margin-top: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
 .calendario-evento-corpo { min-width: 0; }
 .calendario-evento-tipo { color: var(--evento-cor); font-size: 9px; font-weight: 900; letter-spacing: 1.3px; text-transform: uppercase; }
+.calendario-evento-meta-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.calendario-evento-prazo { color: var(--on-surface-variant); font-size: 9px; font-weight: 800; }
+.calendario-evento-prazo.urgente { padding: 3px 7px; border-radius: 999px; background: color-mix(in srgb, var(--evento-cor) 14%, transparent); color: var(--evento-cor); }
 .calendario-evento h3 { margin: 4px 0 3px; overflow-wrap: anywhere; font-size: 15px; }
 .calendario-evento p,
 .calendario-evento small { color: var(--on-surface-variant); font-size: 11px; line-height: 1.5; }
@@ -2781,7 +2915,8 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 }
 
 .calendario-evento-trilha-badge,
-.calendario-evento-resumo-badge {
+.calendario-evento-resumo-badge,
+.calendario-evento-lembrete-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -2795,7 +2930,8 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 }
 
 .calendario-evento-trilha-badge .material-symbols-outlined,
-.calendario-evento-resumo-badge .material-symbols-outlined {
+.calendario-evento-resumo-badge .material-symbols-outlined,
+.calendario-evento-lembrete-badge .material-symbols-outlined {
   font-size: 15px;
 }
 
@@ -2803,6 +2939,7 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   background: rgba(76, 175, 80, 0.15);
   color: #4caf50;
 }
+.calendario-evento-lembrete-badge { background: rgba(242, 198, 109, 0.12); color: #f2c66d; }
 
 .calendario-evento-aulas a {
   display: inline-flex;
@@ -2985,6 +3122,47 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .evento-etapa-edicao > button .material-symbols-outlined { font-size: 18px; }
 .evento-confirmacao-acoes { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 
+.evento-lembretes {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid rgba(242, 198, 109, 0.22);
+  border-radius: 16px;
+  background: rgba(242, 198, 109, 0.045);
+}
+.evento-lembretes > header { display: flex; align-items: center; gap: 10px; }
+.evento-lembretes > header > .material-symbols-outlined { color: #f2c66d; font-size: 23px; }
+.evento-lembretes > header strong,
+.evento-lembretes > header small { display: block; }
+.evento-lembretes > header strong { font-size: 12px; }
+.evento-lembretes > header small { margin-top: 2px; color: var(--on-surface-variant); font-size: 9px; line-height: 1.4; }
+.evento-lembretes-opcoes { display: flex; flex-wrap: wrap; gap: 7px; }
+.evento-lembretes-opcoes button,
+.evento-lembretes-permissao > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--on-surface-variant);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.evento-lembretes-opcoes button.ativo { border-color: rgba(242, 198, 109, 0.55); background: rgba(242, 198, 109, 0.13); color: #ffe1a5; }
+.evento-lembretes-opcoes .material-symbols-outlined,
+.evento-lembretes-permissao .material-symbols-outlined { font-size: 15px; }
+.evento-lembretes button:disabled { opacity: 0.45; cursor: not-allowed; }
+.evento-lembretes-permissao { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.evento-lembretes-permissao > button { border-color: rgba(156, 208, 206, 0.25); color: var(--primary); }
+.evento-lembretes-permissao > small { flex: 1 1 220px; color: var(--on-surface-variant); font-size: 9px; line-height: 1.45; }
+
 @media (max-width: 640px) {
   .calendario-main { padding-top: 16px; }
   .calendario-hero { align-items: stretch; flex-direction: column; gap: 12px; margin-bottom: 18px; }
@@ -2992,6 +3170,15 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   .calendario-hero-acoes { width: 100%; }
   .calendario-capturar-btn,
   .calendario-novo-btn { flex: 1 1 135px; min-height: 48px; }
+  .calendario-resumo { grid-template-columns: minmax(0, 1fr); }
+  .calendario-proximo { min-height: 96px; padding: 14px; border-radius: 18px; }
+  .calendario-indicadores article { min-height: 82px; padding: 11px; border-radius: 14px; }
+  .calendario-controles { align-items: stretch; flex-direction: column; padding: 8px; }
+  .calendario-visoes { align-self: flex-start; }
+  .calendario-filtros-tipo { width: 100%; padding-bottom: 2px; }
+  .calendario-filtros-finais { width: 100%; margin: 0; }
+  .calendario-filtros-finais label { min-width: 0; flex: 1; }
+  .calendario-filtros-finais select { width: 100%; max-width: none; }
   .calendario-painel { padding: 14px; border-radius: 18px; }
   .calendario-dia { min-height: 44px; border-radius: 11px; }
   .calendario-evento { grid-template-columns: 48px minmax(0, 1fr) 44px; gap: 12px; padding: 13px; }
@@ -3006,6 +3193,8 @@ body[data-perfil~="dislexia-tdah"] .pulse {
   .evento-planejamento > header h3 { font-size: 15px; }
   .evento-confirmacao-acoes { align-items: stretch; flex-direction: column-reverse; }
   .evento-confirmacao-acoes .chip { justify-content: center; width: 100%; }
+  .evento-lembretes-opcoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .evento-lembretes-opcoes button { width: 100%; min-width: 0; }
 }
 
 @media (max-width: 370px) {

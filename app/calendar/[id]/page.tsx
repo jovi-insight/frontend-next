@@ -14,7 +14,7 @@ import {
   type EventoCalendario,
 } from "@/lib/api";
 import { avisar } from "@/lib/avisos";
-import { rotuloTipoEvento } from "@/lib/calendario";
+import { rotuloLembrete, rotuloTipoEvento } from "@/lib/calendario";
 import "./detalhes-evento.css";
 
 function dataDoIso(valor: string): Date {
@@ -189,6 +189,20 @@ function DetalhesEventoConteudo() {
             )}
           </div>
         </header>
+
+        {(evento.lembretes_minutos ?? []).length > 0 && (
+          <section className="detalhes-evento-secao detalhes-evento-lembretes">
+            <h2>
+              <span className="material-symbols-outlined">notifications_active</span>
+              Lembretes
+            </h2>
+            <div>
+              {(evento.lembretes_minutos ?? []).map((minutos) => (
+                <span key={minutos}>{rotuloLembrete(minutos)}</span>
+              ))}
+            </div>
+          </section>
+        )}
 
         {evento.tema && (
           <section className="detalhes-evento-secao">

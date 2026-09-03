@@ -5,7 +5,7 @@ Interface web moderna do **INSIGHT**, construída com Next.js 16 (App Router), R
 ## 🚀 Funcionalidades
 
 - **Captura e OCR**: Escaneamento inteligente de documentos físicos com OCR e sugestão automática de matérias.
-- **Calendário acadêmico**: Criação manual ou pelo SCAN, escolha de matéria/tema, vínculo com aulas e trilha de estudo sugerida por IA, com revisão e persistência exclusivamente pelo backend.
+- **Calendário acadêmico**: Criação manual ou pelo SCAN, visão mensal/agenda, filtros, lembretes persistidos, escolha de matéria/tema, vínculo com aulas e trilha de estudo sugerida por IA, com revisão e persistência exclusivamente pelo backend.
 - **Captura em Lote (Modo Aula)**: Registro contínuo de aulas com múltiplas páginas e transcrição por voz.
 - **Resumos com IA**: Geração de resumos automáticos estruturados a partir do conteúdo escaneado.
 - **Galeria de Vídeos & Mídia**: Armazenamento local de vídeos de aula com miniaturas automáticas, reprodução com sincronização de legendas/transcrição e transcrição segmentada.
