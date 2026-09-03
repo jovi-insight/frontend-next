@@ -4,6 +4,7 @@ import AplicaPerfil from "@/components/AplicaPerfil";
 import Avisos from "@/components/Avisos";
 import PwaRegister from "@/components/PwaRegister";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import LembretesCalendario from "@/components/LembretesCalendario";
 
 export const metadata: Metadata = {
   title: "INSIGHT | Capture, estude e evolua",
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <PwaRegister />
         <PwaInstallPrompt />
+        <LembretesCalendario />
         {/* O perfil precisa valer em toda página, não só na tela de Ajustes. */}
         <AplicaPerfil />
         {children}
