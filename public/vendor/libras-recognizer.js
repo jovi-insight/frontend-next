@@ -1110,6 +1110,8 @@
             const dynamic = this.detectDynamicLetter(timestamp);
             if (dynamic) {
                 this.voteBuffer = [];
+                this.staticCandidateLetter = null;
+                this.staticCandidateSince = 0;
                 return { ...dynamic, status: 'confirmado', motion, dynamic: true };
             }
 

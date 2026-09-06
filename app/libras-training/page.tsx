@@ -16,6 +16,7 @@ import {
 } from "@/lib/libras-ml";
 import { useCamera } from "@/lib/use-camera";
 import { useLibras, type Landmark } from "@/lib/use-libras";
+import { orientacaoEnquadramento } from "@/lib/libras-estabilidade";
 
 const LETRAS_ESTATICAS = "ABCDEFGHIKLMNOPQRSTUVWXY".split("");
 const ALVO_AMOSTRAS = 45;
@@ -192,6 +193,12 @@ function TreinamentoLibrasConteudo() {
         }
 
         const quadro = obterQuadro();
+        const enquadramento = quadro ? orientacaoEnquadramento(quadro.landmarks) : null;
+        if (enquadramento) {
+          setMensagemColeta(enquadramento);
+          frameRef.current = requestAnimationFrame(passo);
+          return;
+        }
         const quadroNovo = quadro && quadro.capturadoEm !== ultimoQuadro;
         if (quadroNovo && agora - ultimaAmostraEm >= 75) {
           ultimoQuadro = quadro.capturadoEm;
@@ -479,7 +486,15 @@ function TreinamentoLibrasConteudo() {
               <span className="material-symbols-outlined" aria-hidden="true">verified</span>
               Modelo ativo para {modelo.classes.length} letra(s): {modelo.classes.join(", ")}.
               {typeof modelo.metrics?.validation_accuracy === "number" &&
-                ` Precisão de validação: ${Math.round(modelo.metrics.validation_accuracy * 100)}%.`}
+                ` Acerto no conjunto de validação: ${(modelo.metrics.validation_accuracy * 100).toFixed(1)}%.`}
+              {modelo.metrics?.split_strategy === "estratificado-por-amostra" &&
+                " Essa avaliação usa amostras das mesmas coletas e não mede o acerto com pessoas novas."}
+            </p>
+          )}
+          {modelo?.ready && LETRAS_ESTATICAS.some((letra) => !modelo.classes.includes(letra)) && (
+            <p className="treino-modelo-resumo">
+              Ainda sem treino no modelo publicado: {LETRAS_ESTATICAS.filter((letra) => !modelo.classes.includes(letra)).join(", ")}.
+              Selecione essas letras acima para coletar exemplos reais. J, Z e Ç são lidos pelo movimento.
             </p>
           )}
 

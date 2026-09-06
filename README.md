@@ -11,6 +11,7 @@ Interface web moderna do **INSIGHT**, construída com Next.js 16 (App Router), R
 - **Galeria de Vídeos & Mídia**: Armazenamento local de vídeos de aula com miniaturas automáticas, reprodução com sincronização de legendas/transcrição e transcrição segmentada.
 - **Acessibilidade e Personalização**: Modos dedicados para baixa visão, dislexia, TDAH, daltonismo e suporte a tradução/narração em áudio.
 - **Organização Inteligente**: Estrutura em matérias, pastas e documentos com lixeira e restauração.
+- **Soletração em Libras**: Leitura do alfabeto com consenso temporal, proteção contra respostas atrasadas, orientação de enquadramento e calibração por letra. J, Z e Ç usam trajetórias; a cobertura do modelo treinado aparece em `/libras-training`. Não há tradução de frases sinalizadas ou integração com óculos nesta versão.
 
 ## 🛠️ Tecnologias
 

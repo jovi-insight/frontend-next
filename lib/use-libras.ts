@@ -2,10 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { inferirLandmarks, statusModelo } from "./libras-ml";
+import {
+  combinarLeituras,
+  consensoNeural,
+  EstabilizadorLibras,
+  mesmaPose,
+  orientacaoEnquadramento,
+  type LeituraLibras,
+  type PredicaoTemporal,
+} from "./libras-estabilidade";
 
-// Pausa após a qual a soletração fecha a palavra atual, como no vanilla.
+// Só separa palavras quando a mão fica fora da câmera, não no meio da soletração.
 const PAUSA_DE_PALAVRA = 2000;
-const LETRAS_REATIVADAS = new Set(["X", "Y"]);
 
 const VERSAO_MEDIAPIPE = "0.4.1675469240";
 const CDN_MEDIAPIPE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${VERSAO_MEDIAPIPE}`;
@@ -18,22 +26,8 @@ export type QuadroLandmarks = {
   capturadoEm: number;
 };
 
-type Resultado = {
-  status: "sem-mao" | "incerto" | "movimento" | "estabilizando" | "confirmado";
-  letter?: string;
-  confidence?: number;
-  motion?: { speed: number; moving: boolean };
-  dynamic?: boolean;
-};
-
-type PredicaoBackendEstavel = {
-  letter: string;
-  confidence: number;
-  recebidaEm: number;
-};
-
 type Reconhecedor = {
-  process: (landmarks: Landmark[], agora: number) => Resultado;
+  process: (landmarks: Landmark[], agora: number) => LeituraLibras;
   resetTracking: () => void;
   addCalibrationSample: (letra: string, landmarks: Landmark[]) => number;
   finishCalibration: () => void;
@@ -143,8 +137,10 @@ export function useLibras(
   const [letra, setLetra] = useState<string | null>(null);
   const [confianca, setConfianca] = useState(0);
   const [emMovimento, setEmMovimento] = useState(false);
-  const [palavras, setPalavras] = useState<string[]>([]);
-  const [soletrando, setSoletrando] = useState("");
+  const [texto, setTexto] = useState("");
+  const [estadoLeitura, setEstadoLeitura] = useState<LeituraLibras["status"]>("sem-mao");
+  const [progressoLeitura, setProgressoLeitura] = useState(0);
+  const [orientacao, setOrientacao] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [maoDetectada, setMaoDetectada] = useState(false);
@@ -155,14 +151,8 @@ export function useLibras(
   const recRef = useRef<Reconhecedor | null>(null);
   const loopRef = useRef<number | null>(null);
   const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ultimaLetraRef = useRef<string | null>(null);
-  const liberadoRef = useRef(true);
+  const estabilizadorRef = useRef(new EstabilizadorLibras());
   const quadroRef = useRef<QuadroLandmarks | null>(null);
-  const modeloBackendAtivoRef = useRef(false);
-  const predicaoBackendRef = useRef<PredicaoBackendEstavel | null>(null);
-  const bufferBackendRef = useRef<PredicaoBackendEstavel[]>([]);
-  const backendOcupadoRef = useRef(false);
-  const backendSolicitadoEmRef = useRef(0);
 
   /** Desenha os 21 pontos e as conexões da mão sobre o vídeo. */
   const desenhar = useCallback((pontos: Landmark[] | null) => {
@@ -207,25 +197,29 @@ export function useLibras(
     }
   }, [videoRef]);
 
-  /** Uma letra confirmada só entra de novo depois que a mão sai da pose. */
+  // O estabilizador já impede repetição por tremor ou perda momentânea da mão.
   const registrarLetra = useCallback((nova: string) => {
-    if (nova === ultimaLetraRef.current && !liberadoRef.current) return;
-    ultimaLetraRef.current = nova;
-    liberadoRef.current = false;
-
-    setSoletrando((atual) => atual + nova);
-    if (pausaRef.current) clearTimeout(pausaRef.current);
-    pausaRef.current = setTimeout(() => {
-      setSoletrando((atual) => {
-        if (atual) setPalavras((ps) => [...ps, atual]);
-        return "";
-      });
-    }, PAUSA_DE_PALAVRA);
+    setTexto((atual) => atual + nova);
   }, []);
 
   useEffect(() => {
     if (!ativo) return;
     let vivo = true;
+    let classesModelo = new Set<string>();
+    let predicoes: PredicaoTemporal[] = [];
+    let consulta: AbortController | null = null;
+    let solicitadoEm = -Infinity;
+    estabilizadorRef.current.resetar();
+
+    function apresentar(leitura: LeituraLibras, agora: number) {
+      const estavel = estabilizadorRef.current.processar(leitura, agora);
+      setLetra(estavel.letra);
+      setConfianca(estavel.confianca);
+      setEstadoLeitura(estavel.estado);
+      setProgressoLeitura(Math.round(estavel.progresso * 20) / 20);
+      setEmMovimento(Boolean(leitura.motion?.moving));
+      if (estavel.registrar) registrarLetra(estavel.registrar);
+    }
 
     (async () => {
       setCarregando(true);
@@ -243,7 +237,7 @@ export function useLibras(
         );
         if (reconhecer || calibrar) {
           await carregarScriptComRetry(
-            "/vendor/libras-recognizer.js?v=dynamic-v2-20260828",
+            "/vendor/libras-recognizer.js?v=estabilidade-v3-20260906",
             () => typeof window.LibrasAlphabetRecognizer === "function",
             "Não foi possível carregar o reconhecedor de Libras. Tente novamente.",
           );
@@ -269,15 +263,14 @@ export function useLibras(
         if (reconhecer && rec) {
           void statusModelo()
             .then((modelo) => {
-              if (vivo) modeloBackendAtivoRef.current = modelo.ready;
+              if (vivo && modelo.ready) classesModelo = new Set(modelo.classes);
             })
-            .catch(() => {
-              modeloBackendAtivoRef.current = false;
-            });
+            .catch(() => undefined);
         }
 
         hands.onResults((r) => {
           if (!vivo) return;
+          const agora = performance.now();
           const pontos = r.multiHandLandmarks?.[0] ?? null;
           desenhar(pontos);
           quadroRef.current = pontos
@@ -290,101 +283,76 @@ export function useLibras(
 
           if (!pontos) {
             rec?.resetTracking();
-            bufferBackendRef.current = [];
-            predicaoBackendRef.current = null;
-            setLetra(null);
-            setEmMovimento(false);
-            liberadoRef.current = true; // mão saiu: libera repetir a letra
+            predicoes = [];
+            consulta?.abort();
+            setOrientacao(null);
+            if (reconhecer) {
+              apresentar({ status: "sem-mao" }, agora);
+              if (!pausaRef.current) {
+                pausaRef.current = setTimeout(() => {
+                  if (vivo) setTexto((atual) => atual.trimEnd() ? `${atual.trimEnd()} ` : "");
+                }, PAUSA_DE_PALAVRA);
+              }
+            }
             return;
+          }
+          if (pausaRef.current) {
+            clearTimeout(pausaRef.current);
+            pausaRef.current = null;
           }
 
           // A tela de treinamento precisa apenas dos landmarks crus. Evitar a
           // classificação aqui reduz trabalho e re-renderizações no celular.
           if (!reconhecer || !rec) return;
 
-          const agora = performance.now();
+          const enquadramento = orientacaoEnquadramento(pontos);
+          setOrientacao(enquadramento);
+          if (enquadramento) {
+            rec.resetTracking();
+            predicoes = [];
+            consulta?.abort();
+            apresentar({ status: "incerto" }, agora);
+            return;
+          }
+          const local = rec.process(pontos, agora);
+          predicoes = predicoes.filter((item) => agora - item.capturadoEm <= 900 && mesmaPose(item.pontos, pontos));
+          if (local.motion?.moving || local.dynamic) predicoes = [];
 
-          // O modelo treinado no backend complementa as regras geométricas
-          // locais. A cadência e a janela de estabilidade vêm do fluxo HTML:
-          // no máximo uma chamada por 135 ms e quatro votos em sete quadros.
+          // Vota somente em capturas recentes da mesma pose. Uma resposta lenta
+          // não pode ser tratada como se fosse a mão que está na câmera agora.
           if (
-            modeloBackendAtivoRef.current &&
-            !backendOcupadoRef.current &&
-            agora - backendSolicitadoEmRef.current >= 135
+            classesModelo.size && !consulta && agora - solicitadoEm >= 250 &&
+            !local.motion?.moving && !local.dynamic &&
+            (!local.letter || classesModelo.has(local.letter))
           ) {
-            backendOcupadoRef.current = true;
-            backendSolicitadoEmRef.current = agora;
-            void inferirLandmarks(pontos)
+            const controle = new AbortController();
+            consulta = controle;
+            solicitadoEm = agora;
+            const captura = pontos.map((p) => ({ ...p }));
+            const limite = setTimeout(() => controle.abort(), 1200);
+            void inferirLandmarks(captura, controle.signal)
               .then((predicao) => {
-                if (!vivo) return;
-                if (predicao.unknown || !predicao.letter) {
-                  bufferBackendRef.current = [];
-                  predicaoBackendRef.current = null;
+                const atual = quadroRef.current;
+                if (!vivo || controle.signal.aborted || !atual || performance.now() - agora > 650 ||
+                  !mesmaPose(captura, atual.landmarks)) return;
+                if (predicao.unknown || !predicao.letter || !classesModelo.has(predicao.letter)) {
+                  predicoes = [];
                   return;
                 }
-
-                const recebida = {
-                  letter: predicao.letter,
-                  confidence: predicao.confidence,
-                  recebidaEm: performance.now(),
-                };
-                const buffer = [...bufferBackendRef.current, recebida].slice(-7);
-                bufferBackendRef.current = buffer;
-                const iguais = buffer.filter((item) => item.letter === recebida.letter);
-                if (iguais.length >= 4) {
-                  predicaoBackendRef.current = {
-                    letter: recebida.letter,
-                    confidence:
-                      iguais.reduce((soma, item) => soma + item.confidence, 0) / iguais.length,
-                    recebidaEm: recebida.recebidaEm,
-                  };
-                }
+                predicoes = [...predicoes, {
+                  letter: predicao.letter, confidence: predicao.confidence,
+                  capturadoEm: agora, pontos: captura,
+                }].slice(-5);
               })
               .catch(() => {
                 // A classificação local continua funcionando sem rede.
               })
               .finally(() => {
-                backendOcupadoRef.current = false;
+                clearTimeout(limite);
+                if (consulta === controle) consulta = null;
               });
           }
-
-          const local = rec.process(pontos, agora);
-          const neural = predicaoBackendRef.current;
-          // O modelo publicado ainda pode não ter as novas coletas limpas de
-          // X/Y. Enquanto isso, uma configuração local estável dessas letras
-          // não deve ser sobrescrita por uma classe antiga do backend.
-          const reativadaLocalEstavel = Boolean(
-            local.letter &&
-            LETRAS_REATIVADAS.has(local.letter.toUpperCase()) &&
-            (local.status === "estabilizando" || local.status === "confirmado"),
-          );
-          const saidaBruta: Resultado =
-            neural &&
-            agora - neural.recebidaEm <= 700 &&
-            !local.dynamic &&
-            !local.motion?.moving &&
-            !reativadaLocalEstavel
-              ? {
-                  status: "confirmado",
-                  letter: neural.letter,
-                  confidence: neural.confidence,
-                  motion: local.motion,
-                }
-              : local;
-          const saida: Resultado = saidaBruta;
-          setEmMovimento(Boolean(saida.motion?.moving));
-
-          if (saida.status === "confirmado" && saida.letter) {
-            setLetra(saida.letter);
-            setConfianca(saida.confidence ?? 0);
-            registrarLetra(saida.letter);
-          } else if (saida.status === "estabilizando" && saida.letter) {
-            setLetra(saida.letter);
-            setConfianca(saida.confidence ?? 0);
-          } else if (saida.status === "incerto" || saida.status === "sem-mao") {
-            setLetra(null);
-            liberadoRef.current = true;
-          }
+          apresentar(combinarLeituras(local, consensoNeural(predicoes, agora), pontos, agora), agora);
         });
 
         handsRef.current = hands;
@@ -419,30 +387,30 @@ export function useLibras(
       vivo = false;
       if (loopRef.current) cancelAnimationFrame(loopRef.current);
       if (pausaRef.current) clearTimeout(pausaRef.current);
+      pausaRef.current = null;
+      consulta?.abort();
       handsRef.current?.close?.();
       handsRef.current = null;
       quadroRef.current = null;
-      modeloBackendAtivoRef.current = false;
-      predicaoBackendRef.current = null;
-      bufferBackendRef.current = [];
     };
   }, [ativo, calibrar, desenhar, reconhecer, registrarLetra, tentativa, videoRef]);
 
-  const frase = [...palavras, soletrando].filter(Boolean).join(" ");
+  const frase = texto.trim();
+  const soletrando = texto.split(" ").at(-1) ?? "";
 
   const apagarUltima = useCallback(() => {
-    setSoletrando((atual) => {
-      if (atual) return atual.slice(0, -1);
-      setPalavras((ps) => ps.slice(0, -1));
-      return "";
-    });
+    setTexto((atual) => atual.trimEnd().slice(0, -1));
+  }, []);
+
+  const espaco = useCallback(() => {
+    setTexto((atual) => atual.trimEnd() ? `${atual.trimEnd()} ` : "");
+    estabilizadorRef.current.resetar();
   }, []);
 
   const limpar = useCallback(() => {
-    setPalavras([]);
-    setSoletrando("");
+    setTexto("");
     setLetra(null);
-    ultimaLetraRef.current = null;
+    estabilizadorRef.current.resetar();
   }, []);
 
   const falar = useCallback(() => {
@@ -490,6 +458,9 @@ export function useLibras(
     letra,
     confianca,
     emMovimento,
+    estadoLeitura,
+    progressoLeitura,
+    orientacao,
     frase,
     soletrando,
     carregando,
@@ -498,6 +469,7 @@ export function useLibras(
     adicionarAmostraCalibracao,
     finalizarCalibracao,
     apagarUltima,
+    espaco,
     limpar,
     falar,
   };
