@@ -129,11 +129,13 @@ export async function transcreverMidia(arquivo: Blob, nome = "midia"): Promise<R
 /** POST /v1/predict — inferência neural do alfabeto de Libras */
 export async function inferirLandmarks(
   landmarks: { x: number; y: number; z?: number }[],
+  signal?: AbortSignal,
 ): Promise<PredicaoLibras> {
   const resposta = await fetch(`${baseUrlLibras()}/v1/predict`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ landmarks }),
+    signal,
   });
   if (!resposta.ok) throw new Error("Falha na inferência neural de Libras");
   return await resposta.json();
@@ -146,6 +148,7 @@ export async function statusModelo(): Promise<{
   classes: string[];
   trained_at?: string;
   metrics?: {
+    split_strategy?: string;
     validation_accuracy?: number;
     validation_loss?: number;
     best_epoch?: number;

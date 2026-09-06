@@ -718,6 +718,17 @@ body:has(.camera-container) {
   opacity: 0.7;
 }
 
+.libras-feedback { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.libras-estabilidade { width: 100%; height: 4px; border: 0; border-radius: 4px; overflow: hidden; accent-color: #9cd0ce; }
+.libras-estabilidade::-webkit-progress-bar { background: rgba(255, 255, 255, 0.14); }
+.libras-estabilidade::-webkit-progress-value { background: #9cd0ce; }
+.libras-estabilidade::-moz-progress-bar { background: #9cd0ce; }
+.libras-leitura[data-estado="conflito"] .libras-letra { color: #f4c985; background: rgba(244, 201, 133, 0.14); }
+.libras-ajuda { font-size: 12px; line-height: 1.5; color: rgba(255, 255, 255, 0.78); }
+.libras-ajuda summary { cursor: pointer; padding: 5px 0; }
+.libras-ajuda p { margin: 8px 0; }
+.libras-ajuda a { color: #9cd0ce; text-underline-offset: 3px; }
+
 .libras-frase {
   margin: 0;
   min-height: 40px;

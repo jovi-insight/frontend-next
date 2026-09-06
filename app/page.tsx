@@ -721,26 +721,41 @@ function CameraConteudo() {
 
       {modo === "LIBRAS" && (
         <div className="libras-barra">
-          <div className="libras-leitura">
+          <div className="libras-leitura" data-estado={libras.estadoLeitura}>
             <span className="libras-letra">{libras.letra ?? "--"}</span>
-            <span className="libras-conf">
+            <div className="libras-feedback">
+            <span className="libras-conf" role="status">
               {libras.carregando
                 ? "Carregando rastreamento…"
                 : libras.erro
                   ? libras.erro
-                  : libras.letra
-                    ? `${Math.round(libras.confianca * 100)}% de confiança`
-                    : libras.emMovimento
-                      ? "Em movimento"
-                      : "Aguardando leitura"}
+                  : libras.orientacao
+                    ? libras.orientacao
+                    : libras.estadoLeitura === "conflito"
+                      ? "Leitura ambígua. Ajuste levemente a mão."
+                      : libras.estadoLeitura === "confirmado"
+                        ? "Letra confirmada"
+                        : libras.estadoLeitura === "estabilizando"
+                          ? "Mantenha a posição…"
+                          : libras.emMovimento
+                            ? "Lendo o movimento…"
+                            : libras.maoDetectada
+                              ? "Mostre os dedos com clareza e boa luz."
+                              : "Mostre uma mão inteira para começar."}
             </span>
+            <progress className="libras-estabilidade" max={1} value={libras.progressoLeitura}
+              aria-label="Estabilidade da leitura" />
+            </div>
           </div>
 
           <p className="libras-frase" aria-live="polite">
-            {libras.frase || "Soletre com a mão para formar a frase…"}
+            {libras.frase || "As letras confirmadas aparecem aqui…"}
           </p>
 
           <div className="libras-acoes">
+            <button type="button" onClick={libras.espaco} disabled={!libras.frase} title="Separar palavras" aria-label="Separar palavras">
+              <span className="material-symbols-outlined">space_bar</span>
+            </button>
             <button type="button" onClick={libras.falar} disabled={!libras.frase} title="Falar a frase">
               <span className="material-symbols-outlined">volume_up</span>
             </button>
@@ -759,6 +774,12 @@ function CameraConteudo() {
               <span className="material-symbols-outlined">delete</span>
             </button>
           </div>
+          <details className="libras-ajuda">
+            <summary>Guia de leitura e calibração</summary>
+            <p>Soletre uma letra por vez. Para repetir a mesma letra, retire a mão por um instante.
+              J, Z e Ç precisam do movimento completo. O modo reconhece o alfabeto, não frases sinalizadas.</p>
+            <Link href="/libras-training">Calibrar minha mão e treinar letras</Link>
+          </details>
         </div>
       )}
 
