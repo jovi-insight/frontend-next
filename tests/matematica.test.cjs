@@ -27,8 +27,10 @@ for (const [e, op, r, extra] of [
   ['cos(x)', 'integrar', 'sin(x) + C'], ['x^2', 'definida', '1/3', { inferior: '0', superior: '1' }],
   ['x^2', 'definida', '-1/3', { inferior: '1', superior: '0' }],
   ['x^2-5*x+6=0', 'resolver', 'x ∈ [2,3]'], ['F=m*a', 'resolver', 'a ∈ [F*m^(-1)]', { variavel: 'a' }],
-  ['x^2+2*x+x^2', 'auto', '2*x+2*x^2'], ['d/dx(x^3)', 'auto', '3*x^2'], ['f(x)=x^3', 'derivar', '3*x^2'],
-  ['2x+3', 'auto', '2*x+3'], ['sin(pi/2)', 'auto', '1'], ['sqrt(2)', 'auto', 'sqrt(2)'],
+  ['x^2+2*x+x^2', 'simplificar', '2*x+2*x^2'], ['d/dx(x^3)', 'auto', '3*x^2'], ['f(x)=x^3', 'derivar', '3*x^2'],
+  ['2x+3', 'simplificar', '2*x+3'], ['sin(pi/2)', 'auto', '1'], ['sqrt(2)', 'auto', 'sqrt(2)'],
+  ['f(x)=(x^3+6*x^2-3)/(x+4)', 'avaliar', '-3/4', { valor: '0' }],
+  ['(x^3+6*x^2-3)/(x+4)', 'avaliar', '29/6', { valor: '2' }],
 ]) {
   const resposta = avancado(e, op, extra);
   assert.ok(resposta.ok, `${e}: ${resposta.motivo}`); assert.equal(resposta.solucao.resultado, r, e); testes++;
@@ -37,7 +39,23 @@ for (const pedido of [
   ['1/x', 'definida', { inferior: '-1', superior: '1' }], ['x^2', 'definida', { inferior: '', superior: '1' }],
   ['diff(x,x)', 'auto'], ['set(foo,3)', 'auto'], ['x;fetch(1)', 'auto'], ['x^9999', 'auto'],
   ['x'.repeat(300), 'auto'], ['2+3\n4+5', 'auto'], ['1 2+3', 'auto'], ['1/x=3', 'resolver'], ['x2+3', 'auto'], ['42', 'auto'],
+  ['f(x)=(x^3+6*x^2-3)/(x+4)', 'auto'], ['x^2+3', 'auto'], ['2x+3', 'auto'],
+  ['(x^3+6*x^2-3)/(x+4)', 'avaliar', { valor: '-4' }],
+  ['x^2', 'avaliar', { valor: '' }], ['x^2', 'avaliar', { valor: 'x' }],
+  ['x^2', 'avaliar', { valor: '1/0' }], ['x+y', 'avaliar', { valor: '2' }],
 ]) { assert.equal(avancado(...pedido).ok, false, String(pedido)); testes++; }
+// Fração relatada: verificar o cálculo, não exigir a mesma ordenação textual.
+const fracao = '(x^3+6*x^2-3)/(x+4)';
+const derivadaFracao = avancado(fracao, 'derivar');
+assert.ok(derivadaFracao.ok);
+assert.equal(derivadaFracao.solucao.tipo, 'derivada');
+const nerdamer = require('nerdamer/all.js');
+for (const x of [-10, -5, -3, -1, 0, 1, 2, 10]) {
+  const atual = Number(nerdamer(derivadaFracao.solucao.resultado, { x }).evaluate().text('decimals'));
+  const esperado = (2*x**3+18*x**2+48*x+3)/(x+4)**2;
+  assert.ok(Math.abs(atual-esperado) < 1e-9, `derivada da fração em ${x}`); testes++;
+}
+nerdamer.flush();
 let consenso = confirmarLeitura(null, '2+2', 80, 0);
 assert.equal(consenso.confirmado, false);
 assert.equal(confirmarLeitura(consenso.candidato, '2+2', 80, 200).confirmado, true);
