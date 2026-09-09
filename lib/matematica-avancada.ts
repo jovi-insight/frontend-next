@@ -1,5 +1,5 @@
 import nerdamer from "nerdamer/all.js";
-import { resolverMatematica, type AnaliseMatematica, type SolucaoMatematica } from "./matematica";
+import { resolverMatematica, removerSufixoPergunta, revisarDivisaoImplicita, type AnaliseMatematica, type SolucaoMatematica } from "./matematica";
 
 export type OperacaoMatematica = "auto" | "derivar" | "integrar" | "definida" | "resolver";
 export type PedidoMatematico = {
@@ -42,7 +42,9 @@ export function resolverAvancada(pedido: PedidoMatematico): AnaliseMatematica {
     if (!/^[a-df-hj-zA-Z]$/.test(variavel)) throw new Error("Escolha uma variável de uma letra (e e i são constantes reservadas).");
     if (!["auto", "derivar", "integrar", "definida", "resolver"].includes(pedido.operacao)) throw new Error("Operação não suportada.");
     let operacao = pedido.operacao;
-    let entrada = pedido.expressao.trim();
+    let entrada = removerSufixoPergunta(pedido.expressao.trim());
+    const revisao = revisarDivisaoImplicita(entrada);
+    if (revisao) return { ok: false, revisao, motivo: "Divisão com multiplicação implícita: confirme o agrupamento antes de calcular." };
     // Notação curta reconhecível pelo leitor local; notação 2D vai para leitura assistida.
     const derivada = entrada.match(/^d\s*\/\s*d([a-z])\s*(.+)$/i);
     const integral = entrada.match(/^∫\s*(.+?)\s*d([a-z])$/i);

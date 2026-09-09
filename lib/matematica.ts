@@ -6,9 +6,31 @@ export type SolucaoMatematica = {
   tipo: "conta" | "equacao" | "derivada" | "integral" | "formula";
   aviso?: string;
 };
+export type RevisaoMatematica = { expressao: string; alternativas: { expressao: string; descricao: string }[] };
 export type AnaliseMatematica =
   | { ok: true; solucao: SolucaoMatematica }
-  | { ok: false; motivo: string };
+  | { ok: false; motivo: string; revisao?: RevisaoMatematica };
+
+/** Só remove uma indicação de resposta, nunca interrogações dentro da conta. */
+export const removerSufixoPergunta = (texto: string) => texto.replace(/=\s*[?？]\s*$/, "").trim();
+
+export function revisarDivisaoImplicita(texto: string): RevisaoMatematica | null {
+  const expressao = removerSufixoPergunta(texto).replace(/÷/g, "/");
+  const ocorrencias = [...expressao.matchAll(/\/\s*(\d+(?:[.,]\d+)?)\s*\(/g)];
+  if (!ocorrencias.length) return null;
+  const match = ocorrencias[0], inicio = match.index!, abertura = inicio + match[0].length - 1;
+  let fim = abertura, nivel = 0;
+  for (; fim < expressao.length; fim++) {
+    if (expressao[fim] === "(") nivel++;
+    if (expressao[fim] === ")" && --nivel === 0) break;
+  }
+  // Mais de uma ambiguidade exige edição explícita, sem criar uma árvore de palpites.
+  if (fim === expressao.length || ocorrencias.length > 1) return { expressao, alternativas: [] };
+  return { expressao, alternativas: [
+    { expressao: expressao.slice(0, inicio) + `/${match[1]}*` + expressao.slice(abertura), descricao: "Dividir e depois multiplicar" },
+    { expressao: expressao.slice(0, inicio) + `/(${match[1]}*` + expressao.slice(abertura, fim + 1) + ")" + expressao.slice(fim + 1), descricao: "Dividir pelo produto inteiro" },
+  ] };
+}
 
 type Fracao = { n: bigint; d: bigint };
 type Linear = { a: Fracao; b: Fracao; texto: string };
@@ -61,7 +83,7 @@ function formaLinear(v: Linear): string {
 }
 
 function normalizar(entrada: string): string {
-  let texto = entrada.trim();
+  let texto = removerSufixoPergunta(entrada.trim());
   if (texto.length > 120) throw new Error("Enquadre apenas uma conta curta.");
   if (/[\r\n]/.test(texto)) throw new Error("Enquadre uma única linha de matemática.");
   texto = texto.replace(/[−–—]/g, "-").replace(/[×·⋅]/g, "*")
@@ -171,6 +193,8 @@ class Leitor {
 export function resolverMatematica(entrada: string): AnaliseMatematica {
   try {
     const expressao = normalizar(entrada);
+    const revisao = revisarDivisaoImplicita(expressao);
+    if (revisao) return { ok: false, revisao, motivo: "Divisão com multiplicação implícita: confirme o agrupamento antes de calcular." };
     const partes = expressao.split("=");
     const passos: string[] = [];
     if (partes.length > 2) throw new Error("Enquadre apenas uma conta ou equação.");

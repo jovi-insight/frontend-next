@@ -10,7 +10,7 @@ export class MotorMatematico {
   async resolver(pedido: PedidoMatematico): Promise<AnaliseMatematica> {
     if (pedido.operacao === "auto" && pedido.variavel === "x") {
       const simples = resolverMatematica(pedido.expressao);
-      if (simples.ok) return simples;
+      if (simples.ok || simples.revisao) return simples;
     }
     const chave = JSON.stringify(pedido);
     const salvo = this.cache.get(chave);
