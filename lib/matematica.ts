@@ -14,6 +14,10 @@ export type AnaliseMatematica =
 /** Só remove uma indicação de resposta, nunca interrogações dentro da conta. */
 export const removerSufixoPergunta = (texto: string) => texto.replace(/=\s*[?？]\s*$/, "").trim();
 
+/** Só apresentação: não confundir o sinal de multiplicação com a variável x. */
+export const exibirMultiplicacao = (texto: string) => texto.replace(/(^|[^*])\*(?!\*)/g, "$1×");
+export const normalizarMultiplicacao = (texto: string) => texto.replace(/×/g, "*");
+
 export function revisarDivisaoImplicita(texto: string): RevisaoMatematica | null {
   const expressao = removerSufixoPergunta(texto).replace(/÷/g, "/");
   const ocorrencias = [...expressao.matchAll(/\/\s*(\d+(?:[.,]\d+)?)\s*\(/g)];

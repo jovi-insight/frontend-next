@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { capturarFormula } from "@/lib/matematica-captura";
 import { lerFormula, resolverFormula, type ResolucaoIA } from "@/lib/matematica-api";
-import { revisarDivisaoImplicita, type RevisaoMatematica } from "@/lib/matematica";
+import { revisarDivisaoImplicita, exibirMultiplicacao, normalizarMultiplicacao, type RevisaoMatematica } from "@/lib/matematica";
 import type { OperacaoMatematica } from "@/lib/matematica-avancada";
 import "./matematica-camera.css";
 
@@ -55,10 +55,10 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
       foto.current = captura; setPreview(URL.createObjectURL(captura)); setEditando(true);
       const leitura = await lerFormula(captura, controller.signal);
       if (controller.signal.aborted || !montado.current) return;
-      setExpressao(leitura.expressao);
+      setExpressao(normalizarMultiplicacao(leitura.expressao));
       if (!operacaoEscolhida.current) {
         setOperacao(leitura.operacao); setVariavel(leitura.variavel);
-        setInferior(leitura.inferior ?? ""); setSuperior(leitura.superior ?? "");
+        setInferior(normalizarMultiplicacao(leitura.inferior ?? "")); setSuperior(normalizarMultiplicacao(leitura.superior ?? ""));
       }
       setAviso(`Leitura da IA (${leitura.confianca}). Confira a expressão e o que deseja calcular. ${operacaoEscolhida.current ? "Mantive sua operação. " : ""}${leitura.observacao || ""}`);
       if (!leitura.expressao.trim()) setErro("Não consegui ler a fórmula. Ajuste a foto ou corrija o texto antes de resolver.");
@@ -103,7 +103,7 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
       {editando && <>
         <form onSubmit={e => { e.preventDefault(); void resolver(); }}>
           <label className="math-input-label">Confira a expressão
-            <input className="math-expression-input" aria-label="Expressão matemática" disabled={ocupada} maxLength={240} autoComplete="off" autoCapitalize="off" spellCheck={false} value={expressao} onChange={e => { setExpressao(e.target.value); limparResultado(); }} />
+            <input className="math-expression-input" aria-label="Expressão matemática" disabled={ocupada} maxLength={240} autoComplete="off" autoCapitalize="off" spellCheck={false} value={exibirMultiplicacao(expressao)} onChange={e => { setExpressao(normalizarMultiplicacao(e.target.value)); limparResultado(); }} />
           </label>
           <div className="math-options">
             <label>O que calcular?<select aria-label="Operação matemática" disabled={ocupada} value={operacao} onChange={e => {
@@ -115,12 +115,12 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
             </select></label>
             <label>Variável<input aria-label="Variável de cálculo" disabled={ocupada} maxLength={1} value={variavel} onChange={e => { setVariavel(e.target.value); limparResultado(); }} /></label>
           </div>
-          {operacao === "avaliar" && <label className="math-input-label">Valor de {variavel}<input className="math-expression-input" aria-label="Valor da variável" disabled={ocupada} maxLength={60} value={valor} onChange={e => { setValor(e.target.value); limparResultado(); }} /></label>}
+          {operacao === "avaliar" && <label className="math-input-label">Valor de {variavel}<input className="math-expression-input" aria-label="Valor da variável" disabled={ocupada} maxLength={60} value={exibirMultiplicacao(valor)} onChange={e => { setValor(normalizarMultiplicacao(e.target.value)); limparResultado(); }} /></label>}
           {operacao === "definida" && <div className="math-options">
-            <label>De<input aria-label="Limite inferior" disabled={ocupada} maxLength={60} value={inferior} onChange={e => { setInferior(e.target.value); limparResultado(); }} /></label>
-            <label>Até<input aria-label="Limite superior" disabled={ocupada} maxLength={60} value={superior} onChange={e => { setSuperior(e.target.value); limparResultado(); }} /></label>
+            <label>De<input aria-label="Limite inferior" disabled={ocupada} maxLength={60} value={exibirMultiplicacao(inferior)} onChange={e => { setInferior(normalizarMultiplicacao(e.target.value)); limparResultado(); }} /></label>
+            <label>Até<input aria-label="Limite superior" disabled={ocupada} maxLength={60} value={exibirMultiplicacao(superior)} onChange={e => { setSuperior(normalizarMultiplicacao(e.target.value)); limparResultado(); }} /></label>
           </div>}
-          {aviso && <p className="math-note">{aviso}</p>}
+          {aviso && <p className="math-note">{exibirMultiplicacao(aviso)}</p>}
           <div className="math-actions"><button className="math-primary" type="submit" disabled={ocupada || pausaExterna || !expressao.trim()}>Resolver com IA · passo a passo</button></div>
         </form>
         <div className="math-actions">
@@ -129,22 +129,22 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
         </div>
       </>}
       {atividade && <p role="status" className="math-status">{atividade === "leitura" ? "A IA está lendo sua foto…" : "A IA está resolvendo e preparando os passos…"}</p>}
-      {erro && <p role="alert" className="math-error">{erro}</p>}
+      {erro && <p role="alert" className="math-error">{exibirMultiplicacao(erro)}</p>}
       {revisao && <div className="math-review" role="group" aria-label="Confirmar agrupamento">
         <p>Confirme o agrupamento antes de enviar à IA:</p>
-        {revisao.alternativas.map(op => <button type="button" key={op.expressao} onClick={() => { setExpressao(op.expressao); limparResultado(); }}>{op.descricao}<code>{op.expressao}</code></button>)}
-        {!revisao.alternativas.length && <p>Edite a expressão com * e parênteses explícitos.</p>}
+        {revisao.alternativas.map(op => <button type="button" key={op.expressao} onClick={() => { setExpressao(op.expressao); limparResultado(); }}>{op.descricao}<code>{exibirMultiplicacao(op.expressao)}</code></button>)}
+        {!revisao.alternativas.length && <p>Edite a expressão com × e parênteses explícitos.</p>}
       </div>}
       {resolucao && <div className="math-answer" ref={resultadoRef} aria-live="polite">
         {resolucao.status === "resolvido" ? <>
-          <span className="math-read-label">Expressão confirmada</span><code className="math-read">{expressao}</code>
-          <span className="math-read-label">Resultado da IA</span><output aria-label="Resultado matemático">{resolucao.resultado}</output>
+          <span className="math-read-label">Expressão confirmada</span><code className="math-read">{exibirMultiplicacao(expressao)}</code>
+          <span className="math-read-label">Resultado da IA</span><output aria-label="Resultado matemático">{exibirMultiplicacao(resolucao.resultado ?? "")}</output>
           <h3>Passo a passo</h3><ol className="math-steps" aria-label="Passo a passo da resolução">{resolucao.passos.map((passo, i) => <li key={i}>
-            <h4>{passo.titulo}</h4><p>{passo.explicacao}</p>{passo.formula && <code>{passo.formula}</code>}
+            <h4>{exibirMultiplicacao(passo.titulo)}</h4><p>{exibirMultiplicacao(passo.explicacao)}</p>{passo.formula && <code>{exibirMultiplicacao(passo.formula)}</code>}
           </li>)}</ol>
           <p className="math-note">Resolução gerada por IA. Confira os passos e a expressão da foto.</p>
-        </> : <p className="math-status" role="status">{resolucao.pergunta}</p>}
-        {resolucao.aviso && <p className="math-note">{resolucao.aviso}</p>}
+        </> : <p className="math-status" role="status">{exibirMultiplicacao(resolucao.pergunta ?? "")}</p>}
+        {resolucao.aviso && <p className="math-note">{exibirMultiplicacao(resolucao.aviso)}</p>}
       </div>}
       <p className="math-note">Sem detecção ao vivo. A foto só é enviada ao fotografar ou reler; a resolução só é solicitada após sua confirmação. Requer internet.</p>
     </div>
