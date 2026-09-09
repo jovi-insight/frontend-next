@@ -3,7 +3,8 @@
 .scan-tools button[aria-pressed="true"] { background: #a6e6d0; color: #10251e; font-weight: 700; }
 .math-live { position: absolute; z-index: 4; inset: calc(116px + var(--camera-safe-top)) 16px calc(var(--camera-deck-height) + var(--camera-safe-bottom) + 10px); display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: hidden; overscroll-behavior: contain; touch-action: pan-y; }
 .math-frame { flex: 0 0 auto; width: min(100% - 12px, 620px); height: clamp(100px, 18vh, 160px); border: 2px solid #ffffffc0; border-radius: 14px; position: relative; margin-top: 8px; box-shadow: 0 0 0 3px #00000020; }
-.math-frame span { position: absolute; top: -11px; left: 16px; background: #15221fee; padding: 2px 8px; border-radius: 5px; font-size: 10px; color: white; }
+.math-frame span { position: absolute; z-index: 1; top: -11px; left: 16px; background: #15221fee; padding: 2px 8px; border-radius: 5px; font-size: 10px; color: white; }
+.math-frame-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #14201e; border-radius: 12px; }
 .math-frame-found { border-color: #a6e6d0; }
 .math-card { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; width: min(100%, 640px); background: #101a1af5; color: #edf7f4; border: 1px solid #bcecdc30; border-radius: 20px; padding: 16px; box-sizing: border-box; box-shadow: 0 8px 28px #0005; }
 .math-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }

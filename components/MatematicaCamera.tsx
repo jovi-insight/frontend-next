@@ -92,13 +92,15 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
   }
 
   return <section className="math-live" aria-label="Matemática por foto com IA" onPointerDown={e => e.stopPropagation()}>
-    <div className="math-frame" ref={moldura} aria-hidden="true"><span>{editando ? "Foto capturada · confira abaixo" : "Enquadre toda a expressão e fotografe"}</span></div>
+    <div className="math-frame" ref={moldura} aria-hidden={!editando}>
+      {editando && preview && <img className="math-frame-photo" src={preview} alt="Foto da expressão enviada para a IA" /> /* eslint-disable-line @next/next/no-img-element */}
+      <span>{editando ? "Foto capturada · confira abaixo" : "Enquadre toda a expressão e fotografe"}</span>
+    </div>
     <div className="math-card">
       <div className="math-heading"><span className="math-badge">Matemática · IA</span><span className="math-location">Foto → revisão → solução</span></div>
       {!editando && <p className="math-status">Fotografe a conta para a IA reconhecer. Depois, confira a expressão e peça a resolução passo a passo.</p>}
       <button ref={disparador} hidden={editando} className="math-primary math-capture" type="button" disabled={!pronta || pausaExterna || ocupada} onClick={() => void lerFoto()}>Fotografar e ler com IA</button>
       {editando && <>
-        {preview && <img className="math-preview" src={preview} alt="Foto da expressão enviada para a IA" /> /* eslint-disable-line @next/next/no-img-element */}
         <form onSubmit={e => { e.preventDefault(); void resolver(); }}>
           <label className="math-input-label">Confira a expressão
             <input className="math-expression-input" aria-label="Expressão matemática" disabled={ocupada} maxLength={240} autoComplete="off" autoCapitalize="off" spellCheck={false} value={expressao} onChange={e => { setExpressao(e.target.value); limparResultado(); }} />
@@ -135,6 +137,7 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
       </div>}
       {resolucao && <div className="math-answer" ref={resultadoRef} aria-live="polite">
         {resolucao.status === "resolvido" ? <>
+          <span className="math-read-label">Expressão confirmada</span><code className="math-read">{expressao}</code>
           <span className="math-read-label">Resultado da IA</span><output aria-label="Resultado matemático">{resolucao.resultado}</output>
           <h3>Passo a passo</h3><ol className="math-steps" aria-label="Passo a passo da resolução">{resolucao.passos.map((passo, i) => <li key={i}>
             <h4>{passo.titulo}</h4><p>{passo.explicacao}</p>{passo.formula && <code>{passo.formula}</code>}

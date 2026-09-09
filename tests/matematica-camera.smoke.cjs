@@ -81,6 +81,11 @@ async function main() {
       await page.getByRole('button', { name: 'Reler esta foto com IA' }).click();
       await page.locator('.math-note').filter({ hasText: 'Mantive sua operação' }).waitFor();
       assert.equal(imagens[0], imagens[1]); assert.equal(await page.getByLabel('Operação matemática').inputValue(), 'derivar');
+      const fotoNoVisor = await page.getByAltText('Foto da expressão enviada para a IA').evaluate(async img => {
+        const bytes = new Uint8Array(await (await fetch(img.src)).arrayBuffer());
+        return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
+      });
+      assert.equal(fotoNoVisor, imagens[0], 'visor mostra a captura original, não a conta nova no vídeo');
       await page.getByLabel('Operação matemática').selectOption('auto');
       const resolver = page.getByRole('button', { name: 'Resolver com IA · passo a passo', exact: true });
       await resolver.click(); await resultado.filter({ hasText: /^14$/ }).waitFor();
