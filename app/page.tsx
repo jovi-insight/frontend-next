@@ -1061,7 +1061,7 @@ function CameraConteudo() {
                     : modo === "LIBRAS"
                       ? "Falar a frase montada"
                       : modo === "SCAN" && scanMatematico
-                        ? "Pausar ou retomar matemática"
+                        ? "Fotografar expressão matemática"
                       : "Capturar"
               }
             >

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { resolverMatematica } = require('../.teste-build/matematica/matematica.js');
 const { resolverAvancada } = require('../.teste-build/matematica/matematica-avancada.js');
-const { confirmarLeitura, recorteCamera, diferencaQuadros } = require('../.teste-build/matematica/matematica-leitura.js');
+const { confirmarLeitura, recorteCamera, diferencaQuadros, diferencaMovimento } = require('../.teste-build/matematica/matematica-leitura.js');
 let testes = 0;
 function igual(entrada, esperado) {
   const r = resolverMatematica(entrada);
@@ -15,7 +15,7 @@ for (const [e, r] of [
   ['8 x 4', '32'], ['3²+4²', '25'], ['2*(x+3)=14', 'x = 4'],
   ['3x+2=x+10', 'x = 4'], ['x/3=2', 'x = 6'], ['x=x', 'Infinitas soluções'],
   ['x=x+1', 'Sem solução'], ['2+2=4', 'Igualdade verdadeira'], ['2+2=5', 'Igualdade falsa'],
-  ['2+2=', '4'], ['0.0000001*x=1', 'x = 10000000'],
+  ['2+2=', '4'], ['8 + 7 = ?', '15'], ['8 ÷ 2 * (2 + 2) = ?', '16'], ['8 / (2 * (2 + 2)) = ?', '1'], ['0.0000001*x=1', 'x = 10000000'],
 ]) igual(e, r);
 for (const entrada of ['1/0', '0^0', '2+', '1 2+3', '2+3\n4+5', 'alert(1)', 'x/0=1', 'x*x=4', '1/(x-1)=2', '1e3+2', '99^99', '2,3,4+1', '2+3 texto', '=2', '2=3=4']) {
   assert.equal(resolverMatematica(entrada).ok, false, entrada); testes++;
@@ -43,7 +43,7 @@ assert.equal(consenso.confirmado, false);
 assert.equal(confirmarLeitura(consenso.candidato, '2+2', 80, 200).confirmado, true);
 assert.equal(confirmarLeitura(consenso.candidato, '2+3', 80, 200).confirmado, false);
 assert.equal(confirmarLeitura(consenso.candidato, '2+2', 30, 200).confirmado, false);
-assert.equal(confirmarLeitura(consenso.candidato, '2+2', 80, 2500).confirmado, false);
+assert.equal(confirmarLeitura(consenso.candidato, '2+2', 80, 6000).confirmado, false);
 assert.equal(confirmarLeitura(consenso.candidato, '2+2', NaN, 200).confirmado, false);
 let medio = confirmarLeitura(null, '2+2', 57, 0);
 medio = confirmarLeitura(medio.candidato, '2+2', 57, 200);
@@ -55,4 +55,22 @@ assert.equal(diferencaQuadros(new Uint8Array([0,255]), new Uint8Array([0,255])),
 assert.equal(diferencaQuadros(null, new Uint8Array([0])), 1);
 const antigo = new Uint8Array(2000).fill(255), novo = antigo.slice(); novo[100] = 0; novo[101] = 0;
 assert.ok(diferencaQuadros(antigo, novo) > 0.025, 'mudança localizada não desaparece na média');
+let lento = confirmarLeitura(null, '8+7', 65, 0);
+lento = confirmarLeitura(lento.candidato, '8+7', 65, 2300);
+assert.equal(confirmarLeitura(lento.candidato, '8+7', 65, 4600).confirmado, true, 'leitor lento não reinicia o consenso para sempre');
+for (const resolver of [resolverMatematica, avancado]) {
+  const r = resolver('8 ÷ 2(2 + 2) = ?');
+  assert.equal(r.ok, false);
+  assert.equal(r.revisao.alternativas.length, 2);
+  assert.equal(resolverMatematica(r.revisao.alternativas[0].expressao).solucao.resultado, '16');
+  assert.equal(resolverMatematica(r.revisao.alternativas[1].expressao).solucao.resultado, '1');
+}
+assert.equal(resolverMatematica('8 ? + 7').ok, false, 'não apagar interrogações de símbolos ilegíveis');
+const parado = new Uint8Array(96 * 24).fill(220), tremor = new Uint8Array(96 * 24).fill(228);
+for (let y = 8; y < 18; y++) for (let x = 20; x < 65; x += 7) {
+  parado[y * 96 + x] = 20; tremor[(y + 1) * 96 + x + 1] = 28;
+}
+assert.ok(diferencaQuadros(parado, tremor) > .025, 'o gate antigo reiniciava com tremor pequeno');
+assert.ok(diferencaMovimento(parado, tremor) < .01, 'compensa tremor e exposição uniformes');
+assert.ok(diferencaMovimento(parado, new Uint8Array(96 * 24).fill(220)) > .065, 'retirar a expressão é troca de cena');
 console.log(`Matemática: ${testes} cálculos/casos inválidos + consenso e recorte OK.`);
