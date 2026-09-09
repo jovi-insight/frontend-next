@@ -2992,9 +2992,10 @@ body[data-perfil~="dislexia-tdah"] .pulse {
 .calendario-vazio p { max-width: 420px; margin-top: 6px; font-size: 11px; line-height: 1.6; }
 .calendario-camera-instrucao {
   position: absolute;
-  top: calc(72px + var(--camera-safe-top, 0px));
+  /* A faixa de Documentos/Matemática ocupa 62–106px, antes do aviso. */
+  top: calc(118px + var(--camera-safe-top, 0px));
   left: 50%;
-  z-index: 12;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 9px;

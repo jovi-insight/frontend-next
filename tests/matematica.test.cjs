@@ -1,8 +1,12 @@
 const assert = require('node:assert/strict');
-const { resolverMatematica } = require('../.teste-build/matematica/matematica.js');
+const { resolverMatematica, exibirMultiplicacao, normalizarMultiplicacao } = require('../.teste-build/matematica/matematica.js');
 const { resolverAvancada } = require('../.teste-build/matematica/matematica-avancada.js');
 const { confirmarLeitura, recorteCamera, diferencaQuadros, diferencaMovimento } = require('../.teste-build/matematica/matematica-leitura.js');
 let testes = 0;
+for (const [original, visivel] of [['2+3*4', '2+3×4'], ['x*x+X', 'x×x+X'], ['3 * x * 4', '3 × x × 4'], ['2**3', '2**3']]) {
+  assert.equal(exibirMultiplicacao(original), visivel);
+  assert.equal(normalizarMultiplicacao(visivel), original);
+}
 function igual(entrada, esperado) {
   const r = resolverMatematica(entrada);
   assert.ok(r.ok, `${entrada}: ${r.motivo}`);
