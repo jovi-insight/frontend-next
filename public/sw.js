@@ -3,7 +3,7 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v10-libras-estabilidade";
+const CACHE_NAME = "insight-pwa-v12-matematica";
 const IMAGE_CACHE_NAME = "insight-images-v1";
 const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
 const ASSETS_TO_CACHE = [
@@ -44,6 +44,18 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // OCR versionado: cache-first evita baixar o motor/modelo a cada ativação.
+  const url = new URL(event.request.url);
+  if (event.request.method === "GET" && url.origin === self.location.origin && url.pathname.startsWith("/vendor/math-ocr/7.0.0/")) {
+    event.respondWith(caches.open(CACHE_NAME).then(async (cache) => {
+      const salvo = await cache.match(event.request);
+      if (salvo) return salvo;
+      const resposta = await fetch(event.request);
+      if (resposta.ok) await cache.put(event.request, resposta.clone());
+      return resposta;
+    }));
+    return;
+  }
   if (event.request.method === "GET" && event.request.destination === "image") {
     const cachePromise = caches.open(IMAGE_CACHE_NAME);
     const networkPromise = cachePromise.then((cache) =>
@@ -69,6 +81,7 @@ self.addEventListener("fetch", (event) => {
   if (
     event.request.method !== "GET" ||
     event.request.url.includes("/ia/") ||
+    event.request.url.includes("/matematica/") ||
     event.request.url.includes("/conteudo/") ||
     event.request.url.includes("/materias") ||
     event.request.url.includes("/pastas") ||

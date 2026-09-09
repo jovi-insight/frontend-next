@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import "@/components/matematica-camera.css";
 import GuardaSessao from "@/components/GuardaSessao";
 import BottomNav from "@/components/BottomNav";
 import ConfirmarEventoCalendario from "@/components/ConfirmarEventoCalendario";
@@ -35,6 +37,7 @@ import { CHAVE_PERFIL, temPerfil } from "@/lib/perfil";
 
 type Modo = "FOTO" | "VÍDEO" | "SCAN" | "LIBRAS" | "AULA";
 const MODOS: Modo[] = ["FOTO", "VÍDEO", "SCAN", "LIBRAS", "AULA"];
+const MatematicaCamera = dynamic(() => import("@/components/MatematicaCamera"), { ssr: false });
 
 type EventoEmConfirmacao = {
   analise: AnaliseEventoCalendario;
@@ -85,6 +88,8 @@ function CameraConteudo() {
   const [previewPaginaIndex, setPreviewPaginaIndex] = useState<number | null>(null);
   const [eventoEmConfirmacao, setEventoEmConfirmacao] = useState<EventoEmConfirmacao | null>(null);
   const [salvandoEvento, setSalvandoEvento] = useState(false);
+  const [scanMatematico, setScanMatematico] = useState(false);
+  const [pulsoMatematico, setPulsoMatematico] = useState(0);
 
   const camera = useCamera();
   const aula = useAula();
@@ -433,6 +438,10 @@ function CameraConteudo() {
 
   async function aoDisparar() {
     setGaveta(null);
+    if (modo === "SCAN" && scanMatematico) {
+      setPulsoMatematico((valor) => valor + 1);
+      return;
+    }
 
     if (modo === "AULA") {
       if (aula.gravando) return encerrarAula();
@@ -667,7 +676,7 @@ function CameraConteudo() {
 
         <div className={`proporcao-${ajustes.proporcao.replace(":", "-")} viewfinder-overlay`}>
           {ajustes.grade && <div className="camera-grid-overlay" aria-hidden="true" />}
-          {modo === "SCAN" && <div className="scan-frame" aria-hidden="true" />}
+          {modo === "SCAN" && !scanMatematico && <div className="scan-frame" aria-hidden="true" />}
           {focando && <div className="foco-anel" aria-hidden="true" />}
 
           {gravandoVideo && (
@@ -684,7 +693,19 @@ function CameraConteudo() {
           )}
         </div>
 
-        {modo === "SCAN" && !ocupado && paginas.length === 0 && (
+        {modo === "SCAN" && (
+          <div className="scan-tools" role="group" aria-label="Tipo de Scan" onPointerDown={(e) => e.stopPropagation()}>
+            <button type="button" aria-pressed={!scanMatematico} onClick={() => setScanMatematico(false)}>Documentos</button>
+            <button type="button" aria-pressed={scanMatematico} disabled={paginas.length > 0 || !!ocupado}
+              title={paginas.length ? "Conclua ou descarte as páginas antes de mudar" : "Resolver matemática pela câmera"}
+              onClick={() => setScanMatematico(true)}>Matemática</button>
+          </div>
+        )}
+        {modo === "SCAN" && scanMatematico && (
+          <MatematicaCamera videoRef={camera.videoRef} pronta={camera.pronta} zoom={zoomDigital}
+            pausaExterna={!!gaveta || !!ocupado || !!eventoEmConfirmacao} pulso={pulsoMatematico} />
+        )}
+        {modo === "SCAN" && !scanMatematico && !ocupado && paginas.length === 0 && (
           <div className="calendario-camera-instrucao">
             <span className="material-symbols-outlined" aria-hidden="true">document_scanner</span>
             <p><strong>SCAN inteligente</strong><span>Texto, matéria e datas em uma só captura.</span></p>
@@ -1039,6 +1060,8 @@ function CameraConteudo() {
                       : "Gravar vídeo"
                     : modo === "LIBRAS"
                       ? "Falar a frase montada"
+                      : modo === "SCAN" && scanMatematico
+                        ? "Pausar ou retomar matemática"
                       : "Capturar"
               }
             >
@@ -1055,6 +1078,8 @@ function CameraConteudo() {
                           : "videocam"
                         : modo === "LIBRAS"
                           ? "campaign"
+                          : modo === "SCAN" && scanMatematico
+                            ? "calculate"
                           : "photo_camera"}
                   </span>
                 </div>
