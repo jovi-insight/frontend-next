@@ -17,9 +17,16 @@ async function main() {
       const page = await context.newPage();
       const errors = []; page.on('pageerror', e => errors.push(e.message));
       let leiturasIA = 0;
+      let fotoEnviadaIA = null;
       await context.route('https://backend-rhlz.onrender.com/**', async route => {
         const formula = route.request().url().includes('/matematica/ler-formula');
-        if (formula) leiturasIA++;
+        if (formula && route.request().method() === 'POST') {
+          leiturasIA++;
+          const form = await new Response(route.request().postDataBuffer(), { headers: { 'Content-Type': route.request().headers()['content-type'] } }).formData();
+          const foto = [...form.values()].find(valor => typeof valor !== 'string');
+          assert.ok(foto, 'requisição contém a foto');
+          fotoEnviadaIA = Buffer.from(await foto.arrayBuffer()).toString('base64');
+        }
         await route.fulfill({ contentType: 'application/json', body: JSON.stringify(formula ? {
           expressao: 'x^2', operacao: 'integrar', variavel: 'x', inferior: null, superior: null, confianca: 'alta', observacao: null,
         } : []) });
@@ -115,11 +122,35 @@ async function main() {
       await page.waitForTimeout(500);
       assert.match(await page.getByLabel('Expressão matemática', { exact: true }).inputValue(), /8\s*\+\s*7/, 'foto capturada não acompanha o vídeo');
       assert.equal(leiturasIA, 0, 'disparador usa OCR local, não envia fotos escondido');
+      const fotoVisivel = await page.locator('.math-preview').evaluate(async img => {
+        const bytes = new Uint8Array(await (await fetch(img.src)).arrayBuffer());
+        return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
+      });
+      await page.getByLabel('Operação matemática').selectOption('derivar');
+      await page.getByRole('button', { name: 'Ler fórmula com IA' }).click();
+      await page.locator('.math-note').filter({ hasText: 'Leitura da IA' }).waitFor();
+      assert.equal(fotoEnviadaIA, fotoVisivel, 'IA recebe a foto exibida, mesmo depois de mover a câmera');
+      assert.equal(await page.getByLabel('Operação matemática').inputValue(), 'derivar', 'IA não troca a operação escolhida pelo aluno');
+      await page.getByRole('button', { name: 'Conferir e calcular' }).click();
+      await resultado.filter({ hasText: /^2\*x$/ }).waitFor();
       await page.getByRole('button', { name: 'Voltar ao vivo' }).click();
       console.log(`${width}px: fundo escuro, tremor, = ?, agrupamento e fotografia local OK.`);
       await page.evaluate(() => { window.__mathScene.blank = true; });
       await resultado.waitFor({ state: 'hidden', timeout: 4000 });
       await page.getByRole('button', { name: 'Digitar fórmula', exact: true }).click();
+      await page.getByLabel('Operação matemática').selectOption('auto');
+      await page.getByLabel('Expressão matemática', { exact: true }).fill('f(x)=(x^3+6*x^2-3)/(x+4)');
+      await page.getByRole('button', { name: 'Conferir e calcular' }).click();
+      await page.getByRole('alert').filter({ hasText: 'Escolha' }).waitFor();
+      assert.equal(await resultado.count(), 0, 'não adivinhar uma pergunta para a função');
+      await page.getByLabel('Operação matemática').selectOption('avaliar');
+      await page.getByLabel('Valor da variável').fill('0');
+      await page.getByRole('button', { name: 'Conferir e calcular' }).click();
+      await resultado.filter({ hasText: /^-3\/4$/ }).waitFor();
+      await page.getByLabel('Valor da variável').fill('-4');
+      await page.getByRole('button', { name: 'Conferir e calcular' }).click();
+      await page.locator('.math-error').filter({ hasText: 'domínio' }).waitFor();
+      assert.equal(await resultado.count(), 0, 'ponto fora do domínio não vira resultado');
       await page.getByLabel('Expressão matemática', { exact: true }).fill('x^3+sin(x)');
       await page.getByLabel('Operação matemática').selectOption('derivar');
       await page.getByRole('button', { name: 'Conferir e calcular' }).click();
@@ -137,6 +168,7 @@ async function main() {
       await page.locator('.math-error').filter({ hasText: 'polinômios' }).waitFor();
       assert.equal(await resultado.count(), 0);
       await page.getByRole('button', { name: 'Voltar ao vivo' }).click();
+      await page.getByLabel('Operação matemática').selectOption('auto');
       await page.getByRole('button', { name: 'Ler fórmula com IA' }).click();
       await page.locator('.math-note').filter({ hasText: 'Leitura da IA' }).waitFor();
       assert.equal(await resultado.count(), 0, 'IA precisa de revisão antes de calcular');
@@ -149,7 +181,7 @@ async function main() {
         return r.top >= c.top && r.bottom <= c.bottom;
       });
       assert.ok(visivel, 'resultado precisa estar dentro da parte visível do card');
-      assert.equal(leiturasIA, 1);
+      assert.equal(leiturasIA, 2);
       if (process.env.MATH_SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.MATH_SCREENSHOT_DIR}/matematica-${width}.png`, fullPage: true });
       await page.getByRole('button', { name: 'Documentos', exact: true }).click();
       assert.equal(await page.locator('.math-live').count(), 0);

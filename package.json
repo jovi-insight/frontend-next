@@ -12,6 +12,7 @@
     "lint": "eslint",
     "test:math": "tsc lib/nerdamer.d.ts lib/matematica.ts lib/matematica-avancada.ts lib/matematica-leitura.ts --outDir .teste-build/matematica --module commonjs --target es2022 --esModuleInterop true --skipLibCheck && node tests/matematica.test.cjs",
     "test:math:camera": "node tests/matematica-camera.smoke.cjs",
+    "test:math:ia": "node tests/matematica-ia.smoke.cjs",
     "posttest": "npm run test:math",
     "test": "tsc lib/estudo.ts lib/perfil.ts lib/use-local-storage.ts lib/paginas-aula.ts lib/video-vtt.ts lib/libras-auto-training.ts lib/libras-estabilidade.ts --outDir .teste-build --module es2022 --target es2022 --moduleResolution bundler && sed -i 's|\"./use-local-storage\"|\"./use-local-storage.js\"|' .teste-build/perfil.js && node tests/estudo.test.mjs && node tests/perfil.test.mjs && node tests/paginas-aula.test.mjs && node tests/video-vtt.test.mjs && node tests/libras-auto-training.test.mjs && node tests/libras-dynamic.test.cjs && node tests/libras-estabilidade.test.mjs"
   },

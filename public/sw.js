@@ -3,7 +3,7 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v13-matematica-captura";
+const CACHE_NAME = "insight-pwa-v14-matematica-operacao";
 const IMAGE_CACHE_NAME = "insight-images-v1";
 const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
 const ASSETS_TO_CACHE = [

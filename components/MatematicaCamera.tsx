@@ -20,6 +20,7 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
   const [variavel, setVariavel] = useState("x");
   const [inferior, setInferior] = useState("0");
   const [superior, setSuperior] = useState("1");
+  const [valor, setValor] = useState("");
   const [manual, setManual] = useState<SolucaoMatematica | null>(null);
   const [fixa, setFixa] = useState<SolucaoMatematica | null>(null);
   const [erro, setErro] = useState("");
@@ -33,7 +34,10 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
   const montado = useRef(true);
   const requisicao = useRef<AbortController | null>(null);
   const versaoManual = useRef(0);
-  const opcoes = { operacao, variavel, inferior, superior };
+  const fotoCapturada = useRef<Blob | null>(null);
+  // Uma operação indicada pelo aluno tem prioridade sobre a sugestão da IA.
+  const operacaoEscolhida = useRef<OperacaoMatematica | null>(null);
+  const opcoes = { operacao, variavel, inferior, superior, valor };
   const leitura = useMatematica(videoRef, molduraRef, pronta, zoom,
     pausada || editando || lendoIA || lendoFoto || pausaExterna, opcoes);
   const solucao = editando ? manual : pausada ? fixa : leitura.solucao;
@@ -64,10 +68,12 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
   async function lerFoto() {
     requisicao.current?.abort(); requisicao.current = null;
     const versao = ++versaoManual.current;
+    fotoCapturada.current = null;
     setLendoFoto(true); setEditando(true); setLendoIA(false); setManual(null); setErro(""); setExpressao(""); setRevisaoManual(null); setPreview(null); setAvisoIA("");
     try {
       const captura = await leitura.lerCaptura();
       if (!montado.current || versao !== versaoManual.current) return;
+      fotoCapturada.current = captura.foto;
       setPreview(URL.createObjectURL(captura.foto)); setExpressao(captura.texto);
       setAvisoIA(captura.texto ? "Foto lida no aparelho. Confira os símbolos antes de calcular." : "Não consegui transcrever esta foto. Tente a IA ou digite a expressão.");
     } catch (e) {
@@ -92,22 +98,28 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
     versaoManual.current++;
     const timeout = setTimeout(() => controller.abort(), 18000);
     try {
-      const foto = await leitura.capturarFormula();
+      // Na revisão, enviar exatamente a foto exibida, não outro frame do vídeo.
+      const foto = fotoCapturada.current ?? await leitura.capturarFormula();
       if (controller.signal.aborted || !montado.current) return;
       if (!foto) throw new Error("Aguarde a câmera ficar pronta.");
+      fotoCapturada.current = foto;
       setPreview(URL.createObjectURL(foto));
       const resposta = await lerFormula(foto, controller.signal);
       if (controller.signal.aborted) return;
-      setExpressao(resposta.expressao); setOperacao(resposta.operacao); setVariavel(resposta.variavel);
-      if (resposta.inferior != null) setInferior(resposta.inferior);
-      if (resposta.superior != null) setSuperior(resposta.superior);
-      setAvisoIA(`Leitura da IA (${resposta.confianca}). Confira símbolos, operação e limites antes de calcular. ${resposta.observacao || ""}`);
+      setExpressao(resposta.expressao);
+      if (!operacaoEscolhida.current) {
+        setOperacao(resposta.operacao); setVariavel(resposta.variavel);
+        if (resposta.inferior != null) setInferior(resposta.inferior);
+        if (resposta.superior != null) setSuperior(resposta.superior);
+      }
+      setAvisoIA(`Leitura da IA (${resposta.confianca}). ${operacaoEscolhida.current ? "Mantive a operação que você escolheu. " : ""}Confira símbolos, operação e limites antes de calcular. ${resposta.observacao || ""}`);
     } catch (e) {
       if (montado.current && requisicao.current === controller) setErro(controller.signal.aborted ? "A leitura foi cancelada ou demorou demais. Você pode digitar a fórmula." : (e as Error).message);
     } finally { clearTimeout(timeout); if (montado.current && requisicao.current === controller) setLendoIA(false); }
   }
   function voltar() {
     requisicao.current?.abort(); requisicao.current = null;
+    fotoCapturada.current = null;
     versaoManual.current++; setLendoIA(false); setLendoFoto(false); setRevisaoManual(null); setCalculando(false); setEditando(false);
     setPausada(false); setFixa(null); setManual(null); setPreview(null); setAvisoIA(""); setErro(""); setMostrarPassos(false);
   }
@@ -124,12 +136,15 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
         </div>
         <button ref={capturaRef} hidden={editando} className="math-primary math-capture" type="button" disabled={!pronta || lendoIA || lendoFoto || leitura.estado === "preparando"} onClick={() => void lerFoto()}>Fotografar e ler</button>
         <div className="math-options">
-          <label>Operação<select aria-label="Operação matemática" disabled={lendoFoto || lendoIA} value={operacao} onChange={(e) => { setOperacao(e.target.value as OperacaoMatematica); limparResultado(); setFixa(null); }}>
-            <option value="auto">Automática</option><option value="derivar">Derivada</option>
+          <label>O que calcular?<select aria-label="Operação matemática" disabled={lendoFoto || lendoIA} value={operacao} onChange={(e) => { const escolha = e.target.value as OperacaoMatematica; operacaoEscolhida.current = escolha === "auto" ? null : escolha; setOperacao(escolha); limparResultado(); setFixa(null); }}>
+            <option value="auto">Automática · contas e equações</option><option value="avaliar">Calcular valor de f(x)</option><option value="simplificar">Simplificar expressão</option><option value="derivar">Derivada</option>
             <option value="integrar">Integral</option><option value="definida">Integral definida</option><option value="resolver">Resolver equação</option>
           </select></label>
           <label>Variável<input aria-label="Variável de cálculo" disabled={lendoFoto || lendoIA} maxLength={1} value={variavel} onChange={(e) => { setVariavel(e.target.value); limparResultado(); setFixa(null); }} /></label>
         </div>
+        {operacao === "avaliar" && <label className="math-input-label">Valor de {variavel}
+          <input className="math-expression-input" aria-label="Valor da variável" disabled={lendoFoto || lendoIA} maxLength={60} placeholder="Ex.: 0, 2 ou 1/2" value={valor} onChange={(e) => { setValor(e.target.value); limparResultado(); setFixa(null); }} />
+        </label>}
         {operacao === "definida" && <div className="math-options">
           <label>De<input aria-label="Limite inferior" disabled={lendoFoto || lendoIA} value={inferior} onChange={(e) => { setInferior(e.target.value); limparResultado(); setFixa(null); }} /></label>
           <label>Até<input aria-label="Limite superior" disabled={lendoFoto || lendoIA} value={superior} onChange={(e) => { setSuperior(e.target.value); limparResultado(); setFixa(null); }} /></label>
@@ -160,6 +175,7 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
         </div>}
         {solucao && <div className="math-answer" ref={resultadoRef} aria-live="polite">
           <span className="math-read-label">Expressão lida</span><code className="math-read">{solucao.expressao}</code>
+          <span className="math-read-label">{({ conta: "Valor calculado", equacao: "Solução da equação", derivada: "Derivada", integral: "Integral", formula: "Forma algébrica equivalente" })[solucao.tipo]}</span>
           <output aria-label="Resultado matemático">{solucao.resultado}</output>
           {solucao.aviso && <p className="math-note">{solucao.aviso}</p>}
           {!editando && !pausada && leitura.tempoMs != null && <small>Leitura + cálculo: {(leitura.tempoMs / 1000).toFixed(2)} s nesta execução</small>}

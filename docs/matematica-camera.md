@@ -8,6 +8,7 @@ Acesso: câmera → SCAN → Matemática. O modo Documentos/calendário continua
 - Resultado após 2 leituras consistentes com escore OCR alto ou 3 com escore intermediário. Escore OCR não é garantia de acerto.
 - Aritmética com frações exatas, decimais, potências, parênteses e equações lineares; sem `eval`.
 - Motor simbólico Nerdamer isolado em Worker: derivadas, primitivas suportadas, simplificação, equações e isolamento de fórmulas.
+- Uma função sem pergunta, como `f(x)=(x^3+6*x^2-3)/(x+4)`, não é derivada nem simplificada automaticamente. O aluno escolhe a operação. “Calcular valor de f(x)” pede o valor da variável: nesta função, `f(0)=-3/4`; `x=-4` é recusado. Simplificação precisa ser explícita; não presumir `f(x)=0`.
 - Integral definida de polinômios em uma variável com limites finitos. Outras integrais definidas/impróprias são recusadas para evitar ignorar singularidades.
 - Exemplos digitados: `x^3+sin(x)` / Derivada; `x^2` / Integral; `x^2-5*x+6=0` / Resolver; `F=m*a` / Resolver com variável `a`.
 - Limite de 3 segundos no motor simbólico; respostas não resolvidas não são exibidas como solução. As explicações avançadas são um resumo da operação, não uma derivação completa de todas as regras algébricas.
@@ -19,6 +20,8 @@ Acesso: câmera → SCAN → Matemática. O modo Documentos/calendário continua
 ## Leitura assistida online
 
 “Ler fórmula com IA” envia apenas o recorte ao backend (`POST /matematica/ler-formula`). O backend transcreve, não resolve nem salva fotos/fórmulas. O aluno revisa expressão, operação, variável e limites antes de calcular localmente.
+
+Se uma foto já estiver na revisão, a IA recebe essa mesma imagem, não outro frame da câmera. Uma operação explicitamente selecionada pelo aluno prevalece sobre a sugestão da IA, com seus limites/variável preservados. O prompt diferencia `f(x)=...` de derivada e exige parênteses para agrupar numerador/denominador de frações empilhadas. Isso reduz ambiguidades, não garante acurácia universal.
 
 Precisa publicar o backend e configurar `GROQ_API_KEY` e um `GROQ_VISION_MODEL` com visão. Chave ausente retorna 503; backend antigo retorna 404 com orientação na interface. Nenhuma chave entra no frontend. Tempo limite e validação de tamanho/formato evitam carregamento indefinido e arquivos inválidos.
 
@@ -37,9 +40,13 @@ Precisa publicar o backend e configurar `GROQ_API_KEY` e um `GROQ_VISION_MODEL` 
 
 `npm test` inclui `npm run test:math`. Para navegador, disponibilize Playwright/Chromium e execute `MATH_TEST_SERVER=1 npm run test:math:camera` após o build. `PLAYWRIGHT_PACKAGE`, `CHROMIUM_PATH` e `MATH_SCREENSHOT_DIR` são opcionais.
 
+Para testar a integração REAL pela câmera: `MATH_TEST_REAL_API=1 npm run test:math:ia`. Cada execução permite só uma chamada de IA e intercepta as outras rotas do backend para não consumir lembretes nem acessar dados reais. O padrão é a conta ambígua em fundo escuro; `MATH_TEST_IA_CASO=derivada`, `integral` ou `fracao` seleciona os demais cenários. Exige Playwright/Chromium, usa vídeo sintético e consome cota do provedor. Não roda em `npm test`.
+
 No backend: `python -m pytest -q tests/test_matematica.py` (respostas do provedor simuladas). Nenhum dado real é persistido nos testes.
 
 Validação de produção em 09/09/2026: a tradução de uma imagem impressa simples respondeu 200 enquanto a chamada matemática falhou. A leitura matemática foi alinhada ao contrato de visão da tradução; ainda houve resposta incompatível com o schema e limite do provedor (429). Não considerar leitura com IA pronta apenas por merge/build. `X-Math-Invalid-Fields` informa somente nomes de campos rejeitados, sem valores nem fotos, para diagnóstico.
+
+Após corrigir a variável inaplicável em contas numéricas, a API real devolveu `8/2(2+2)` com HTTP 200 em 2,4 s. O fluxo completo no frontend publicado, com captura de vídeo sintético e IA real, passou em viewport 390px: transcrição em 5,09 s, revisão obrigatória e escolha explícita dos agrupamentos com resultados 16/1. Isso não mede reconhecimento da imagem original anexada nem a velocidade em celular físico. O teste extra de derivada inicialmente terminou sem transcrição; deve ser verificado separadamente, não inferido do sucesso aritmético.
 
 Antes de prometer latência: testar primeira abertura e motor aquecido no celular JOVI, boa/baixa luz, símbolos parecidos, movimento, troca de câmera, modo avião após carregar os assets, cancelamento e notação ilegível. Comparar expressão lida e resposta, não só o cronômetro.
 

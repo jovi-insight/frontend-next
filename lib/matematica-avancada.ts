@@ -1,13 +1,14 @@
 import nerdamer from "nerdamer/all.js";
 import { resolverMatematica, removerSufixoPergunta, revisarDivisaoImplicita, type AnaliseMatematica, type SolucaoMatematica } from "./matematica";
 
-export type OperacaoMatematica = "auto" | "derivar" | "integrar" | "definida" | "resolver";
+export type OperacaoMatematica = "auto" | "simplificar" | "avaliar" | "derivar" | "integrar" | "definida" | "resolver";
 export type PedidoMatematico = {
   expressao: string;
   operacao: OperacaoMatematica;
   variavel: string;
   inferior?: string;
   superior?: string;
+  valor?: string;
 };
 
 const FUNCOES = new Set(["sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "sqrt", "abs", "log", "exp", "sec", "csc", "cot"]);
@@ -40,7 +41,7 @@ export function resolverAvancada(pedido: PedidoMatematico): AnaliseMatematica {
   try {
     const { variavel, inferior, superior } = pedido;
     if (!/^[a-df-hj-zA-Z]$/.test(variavel)) throw new Error("Escolha uma variável de uma letra (e e i são constantes reservadas).");
-    if (!["auto", "derivar", "integrar", "definida", "resolver"].includes(pedido.operacao)) throw new Error("Operação não suportada.");
+    if (!["auto", "simplificar", "avaliar", "derivar", "integrar", "definida", "resolver"].includes(pedido.operacao)) throw new Error("Operação não suportada.");
     let operacao = pedido.operacao;
     let entrada = removerSufixoPergunta(pedido.expressao.trim());
     const revisao = revisarDivisaoImplicita(entrada);
@@ -64,11 +65,26 @@ export function resolverAvancada(pedido: PedidoMatematico): AnaliseMatematica {
     }
     if (operacao === "auto" && expressao.includes("=")) operacao = "resolver";
     if (expressao.includes("=") && operacao !== "resolver") throw new Error("Selecione Resolver equação ou informe apenas a função.");
+    if (operacao === "auto" && nerdamer(expressao).variables().length) {
+      throw new Error("Esta imagem define uma função ou expressão com variável, não uma pergunta completa. Escolha Calcular valor, Simplificar, Derivada ou Integral. Para resolver uma equação, informe a igualdade; não vou presumir f(x) = 0.");
+    }
     let saida: ReturnType<typeof nerdamer>;
     const passos: string[] = [];
     let tipo: SolucaoMatematica["tipo"] = "formula";
     let aviso = "Confira a expressão reconhecida e seu domínio. Funções trigonométricas usam radianos.";
-    if (operacao === "derivar") {
+    if (operacao === "avaliar") {
+      if (!pedido.valor?.trim()) throw new Error(`Informe o valor de ${v}.`);
+      const valor = validarExpressao(pedido.valor);
+      if (valor.includes("=")) throw new Error("Informe um valor numérico finito.");
+      const numero = nerdamer(valor).evaluate();
+      if (numero.variables().length || !Number.isFinite(Number(numero.text("decimals")))) throw new Error("Informe um valor numérico finito.");
+      saida = nerdamer(expressao, { [v]: numero.toString() });
+      if (saida.variables().length) throw new Error("A expressão ainda tem outras variáveis. Informe seus valores na fórmula.");
+      if (!Number.isFinite(Number(saida.evaluate().text("decimals")))) throw new Error("A função não está definida nesse valor no domínio real.");
+      tipo = "conta";
+      passos.push(`Substitua ${v} por ${numero.toString()} na expressão revisada.`);
+      aviso = `Valor calculado para ${v} = ${numero.toString()}. Não é uma derivada nem uma raiz da função.`;
+    } else if (operacao === "derivar") {
       saida = nerdamer(`diff(${expressao},${v})`);
       tipo = "derivada";
       passos.push(`Derive a expressão em relação a ${v}.`, "Outras letras são tratadas como constantes.");
@@ -121,6 +137,9 @@ export function resolverAvancada(pedido: PedidoMatematico): AnaliseMatematica {
     passos.push(`Resultado: ${resultado}`);
     return { ok: true, solucao: { expressao: pedido.expressao.trim(), resultado, passos, tipo, aviso } };
   } catch (e) {
+    if (e instanceof Error && /division by zero|divide by zero/i.test(e.message)) {
+      return { ok: false, motivo: "Divisão por zero: a expressão não está definida nesse valor. Confira o denominador e o domínio." };
+    }
     return { ok: false, motivo: e instanceof Error ? e.message : "Não consegui resolver esta expressão." };
   } finally { nerdamer.flush(); }
 }
