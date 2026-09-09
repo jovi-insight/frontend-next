@@ -3,9 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare:math-ocr": "node scripts/prepare-math-ocr.mjs",
-    "predev": "npm run prepare:math-ocr",
-    "prebuild": "npm run prepare:math-ocr",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -18,13 +15,11 @@
   },
   "dependencies": {
     "nerdamer": "1.1.13",
-    "tesseract.js": "7.0.0",
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@tesseract.js-data/eng": "1.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
