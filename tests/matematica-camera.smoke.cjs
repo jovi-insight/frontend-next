@@ -149,7 +149,7 @@ async function main() {
       await resultado.filter({ hasText: /^-3\/4$/ }).waitFor();
       await page.getByLabel('Valor da variável').fill('-4');
       await page.getByRole('button', { name: 'Conferir e calcular' }).click();
-      await page.getByRole('alert').waitFor();
+      await page.locator('.math-error').filter({ hasText: 'domínio' }).waitFor();
       assert.equal(await resultado.count(), 0, 'ponto fora do domínio não vira resultado');
       await page.getByLabel('Expressão matemática', { exact: true }).fill('x^3+sin(x)');
       await page.getByLabel('Operação matemática').selectOption('derivar');

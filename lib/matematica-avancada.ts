@@ -137,6 +137,9 @@ export function resolverAvancada(pedido: PedidoMatematico): AnaliseMatematica {
     passos.push(`Resultado: ${resultado}`);
     return { ok: true, solucao: { expressao: pedido.expressao.trim(), resultado, passos, tipo, aviso } };
   } catch (e) {
+    if (e instanceof Error && /division by zero|divide by zero/i.test(e.message)) {
+      return { ok: false, motivo: "Divisão por zero: a expressão não está definida nesse valor. Confira o denominador e o domínio." };
+    }
     return { ok: false, motivo: e instanceof Error ? e.message : "Não consegui resolver esta expressão." };
   } finally { nerdamer.flush(); }
 }
