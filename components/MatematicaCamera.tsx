@@ -44,7 +44,7 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
   }, [pulso, leitura.solucao]);
   useEffect(() => {
     montado.current = true;
-    return () => { montado.current = false; requisicao.current?.abort(); versaoManual.current++; };
+    return () => { montado.current = false; requisicao.current?.abort(); };
   }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   useEffect(() => {
@@ -60,10 +60,10 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
     setCalculando(true); setErro(""); setManual(null);
     try {
       const resposta = await leitura.calcular({ ...opcoes, expressao });
-      if (versao !== versaoManual.current) return;
+      if (!montado.current || versao !== versaoManual.current) return;
       if (resposta.ok) setManual(resposta.solucao);
       else setErro(resposta.motivo);
-    } catch { if (versao === versaoManual.current) setErro("Não foi possível iniciar o motor matemático."); }
+    } catch { if (montado.current && versao === versaoManual.current) setErro("Não foi possível iniciar o motor matemático."); }
     finally { if (montado.current) setCalculando(false); }
   }
   async function lerComIA() {
