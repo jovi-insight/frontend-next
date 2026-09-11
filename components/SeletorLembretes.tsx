@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LEMBRETES_CALENDARIO } from "@/lib/calendario";
+import { ativarPush, desativarPush } from "@/lib/calendario-notificacoes";
 
 export default function SeletorLembretes({
   valores,
@@ -13,6 +14,7 @@ export default function SeletorLembretes({
   disabled?: boolean;
 }) {
   const [mensagemPermissao, setMensagemPermissao] = useState<string | null>(null);
+  const [ativando, setAtivando] = useState(false);
 
   function alternar(minutos: number) {
     onChange(
@@ -23,18 +25,16 @@ export default function SeletorLembretes({
   }
 
   async function ativarNotificacoes() {
-    if (!("Notification" in window)) {
-      setMensagemPermissao("Este navegador não oferece notificações.");
-      return;
-    }
-    const permissao = await Notification.requestPermission();
-    setMensagemPermissao(
-      permissao === "granted"
-        ? "Notificações do aparelho ativadas."
-        : permissao === "denied"
-          ? "Notificações bloqueadas no navegador. Os avisos continuam aparecendo no INSIGHT."
-          : "Permissão ainda não concedida. Os avisos continuam aparecendo no INSIGHT.",
-    );
+    setAtivando(true);
+    try { setMensagemPermissao(await ativarPush()); }
+    catch (e) { setMensagemPermissao((e as Error).message); }
+    finally { setAtivando(false); }
+  }
+  async function desativarNotificacoes() {
+    setAtivando(true);
+    try { setMensagemPermissao(await desativarPush()); }
+    catch (e) { setMensagemPermissao((e as Error).message); }
+    finally { setAtivando(false); }
   }
 
   return (
@@ -66,10 +66,11 @@ export default function SeletorLembretes({
       </div>
 
       <div className="evento-lembretes-permissao">
-        <button type="button" onClick={() => void ativarNotificacoes()} disabled={disabled}>
+        <button type="button" onClick={() => void ativarNotificacoes()} disabled={disabled || ativando}>
           <span className="material-symbols-outlined" aria-hidden="true">phone_in_talk</span>
-          Ativar notificação no aparelho
+          {ativando ? "Conferindo notificações…" : "Ativar lembretes com app fechado"}
         </button>
+        <button type="button" onClick={() => void desativarNotificacoes()} disabled={disabled || ativando}>Desativar neste aparelho</button>
         {mensagemPermissao && <small role="status">{mensagemPermissao}</small>}
       </div>
     </section>

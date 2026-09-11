@@ -46,5 +46,14 @@
 .math-steps h4 { margin: 0; font-size: 13px; color: #d5f9e7; }
 .math-steps p { margin: 5px 0; white-space: pre-wrap; }
 .math-steps code { display: block; padding: 8px; border-radius: 8px; background: #ffffff09; overflow-wrap: anywhere; white-space: pre-wrap; }
+.math-formatted { display: block; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding: 12px 4px; font-size: 16px; line-height: 1.6; overscroll-behavior-x: contain; }
+.math-formatted .katex-display { margin: 0; text-align: left; }
+.math-formatted .katex-display > .katex { text-align: left; }
+.math-expression-preview, .math-steps .math-formatted { margin-top: 8px; padding: 0 8px; background: #ffffff09; border-radius: 10px; }
+.math-answer output { min-width: 0; width: 100%; }
+.math-answer output .math-formatted { font-size: clamp(18px, 4vw, 24px); }
+.math-text-original { font-size: 12px; margin-top: 10px; }
+.math-text-original summary { cursor: pointer; padding: 8px 0; }
+.math-text-original code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; }
 @media (max-height: 700px) { .math-live { gap: 8px; } .math-card { padding: 12px; } .math-heading { margin-bottom: 6px; } .math-frame { height: 64px; } }
 @media (prefers-reduced-motion: reduce) { .math-live * { transition: none !important; } }

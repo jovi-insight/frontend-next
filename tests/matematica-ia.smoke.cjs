@@ -19,6 +19,7 @@ async function main() {
       return route.fulfill({ json: [] });
     });
     const page = await context.newPage(), erros = [], ocr = [];
+    page.on('requestfailed', req => { if (req.url().includes('/matematica/')) console.log('Falha de rede:', new URL(req.url()).pathname, req.failure()?.errorText); });
     page.on('pageerror', erro => erros.push(erro.message));
     page.on('request', req => { if (/tesseract|math-ocr|traineddata/.test(req.url())) ocr.push(req.url()); });
     await page.addInitScript(fracao => {
@@ -72,8 +73,10 @@ async function main() {
     const texto = resultado.resultado.replace(/\s/g, '').replace(/−/g, '-');
     assert.match(texto, fracao ? /-3\/4|-0[.,]75/ : /(?<!\d)14(?![\d.,])/);
     await page.getByLabel('Resultado matemático').waitFor();
+    await page.getByLabel('Resultado matemático').locator('.katex').waitFor();
+    await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.getByLabel('Passo a passo da resolução').locator('li').count(), resultado.passos.length);
-    if (process.env.MATH_SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.MATH_SCREENSHOT_DIR}/matematica-ia-real-passos.png`, fullPage: true });
+    if (process.env.MATH_SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.MATH_SCREENSHOT_DIR}/matematica-ia-real-${fracao ? 'fracao' : 'conta'}.png`, fullPage: true });
     assert.deepEqual(chamadas, { leitura: 1, resolucao: 1 }); assert.deepEqual(erros, []); assert.deepEqual(ocr, []);
     console.log('Foto → transcrição real → revisão → resolução real com passos: OK (vídeo sintético).');
   } finally { await browser.close(); }

@@ -23,9 +23,13 @@ Validação de estrutura não é prova de correção matemática. A IA pode erra
 
 ## Testes
 
+Frações, potências e raízes são apresentadas com KaTeX carregado sob demanda; notações não reconhecidas permanecem em texto. O formatador não calcula nem simplifica a expressão. O resultado original também pode ser aberto em “Ver resultado em texto”.
+
+- `npm run test:math:formatacao`: testes de tipografia, agrupamento e fallback, sem chamadas à IA.
+
 - `npm ci`, `npm run build`, `npm test`.
 - `MATH_TEST_SERVER=1 npm run test:math:camera`: navegador com câmera/IA simuladas; verifica ausência de OCR, Workers e envios automáticos, confirmação, foto fixa, operação, passos, dados faltantes, erros e cancelamento em 390/1280px. Exige Playwright/Chromium (`PLAYWRIGHT_PACKAGE`, `CHROMIUM_PATH` opcionais).
 - `MATH_TEST_REAL_API=1 npm run test:math:ia`: opt-in que consome cota real; até uma transcrição e uma resolução por execução, vídeo sintético, demais rotas isoladas. Não roda em `npm test` e não mede câmera física.
-- Backend: `python -m pytest -q tests/test_matematica.py` usa IA simulada e não persiste dados.
+- Backend: `python -m pytest -q tests/test_matematica.py tests/test_matematica_intencao.py` usa IA simulada e não persiste dados. A função sem operação e a divisão ambígua pedem esclarecimento antes de chamar o modelo.
 
 Os motores matemáticos antigos permanecem como módulos auxiliares/testados, mas não são carregados nem usados pela câmera. O leitor Tesseract e seu preparo foram removidos deste projeto. Não confundir os testes desses módulos antigos com validação do resultado gerado pela IA.
