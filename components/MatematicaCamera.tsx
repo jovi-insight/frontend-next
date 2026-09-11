@@ -5,6 +5,7 @@ import { capturarFormula } from "@/lib/matematica-captura";
 import { lerFormula, resolverFormula, type ResolucaoIA } from "@/lib/matematica-api";
 import { revisarDivisaoImplicita, exibirMultiplicacao, normalizarMultiplicacao, type RevisaoMatematica } from "@/lib/matematica";
 import type { OperacaoMatematica } from "@/lib/matematica-avancada";
+import FormulaMatematica from "./FormulaMatematica";
 import "./matematica-camera.css";
 
 export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna, pulso }: {
@@ -105,6 +106,7 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
           <label className="math-input-label">Confira a expressão
             <input className="math-expression-input" aria-label="Expressão matemática" disabled={ocupada} maxLength={240} autoComplete="off" autoCapitalize="off" spellCheck={false} value={exibirMultiplicacao(expressao)} onChange={e => { setExpressao(normalizarMultiplicacao(e.target.value)); limparResultado(); }} />
           </label>
+          {!!expressao.trim() && <div className="math-expression-preview" aria-label="Prévia da expressão"><FormulaMatematica texto={expressao} /></div>}
           <div className="math-options">
             <label>O que calcular?<select aria-label="Operação matemática" disabled={ocupada} value={operacao} onChange={e => {
               const op = e.target.value as OperacaoMatematica; operacaoEscolhida.current = op === "auto" ? null : op;
@@ -137,12 +139,13 @@ export default function MatematicaCamera({ videoRef, pronta, zoom, pausaExterna,
       </div>}
       {resolucao && <div className="math-answer" ref={resultadoRef} aria-live="polite">
         {resolucao.status === "resolvido" ? <>
-          <span className="math-read-label">Expressão confirmada</span><code className="math-read">{exibirMultiplicacao(expressao)}</code>
-          <span className="math-read-label">Resultado da IA</span><output aria-label="Resultado matemático">{exibirMultiplicacao(resolucao.resultado ?? "")}</output>
+          <span className="math-read-label">Expressão confirmada</span><FormulaMatematica texto={expressao} />
+          <span className="math-read-label">Resultado da IA</span><output aria-label="Resultado matemático"><FormulaMatematica texto={resolucao.resultado ?? ""} /></output>
           <h3>Passo a passo</h3><ol className="math-steps" aria-label="Passo a passo da resolução">{resolucao.passos.map((passo, i) => <li key={i}>
-            <h4>{exibirMultiplicacao(passo.titulo)}</h4><p>{exibirMultiplicacao(passo.explicacao)}</p>{passo.formula && <code>{exibirMultiplicacao(passo.formula)}</code>}
+            <h4>{exibirMultiplicacao(passo.titulo)}</h4><p>{exibirMultiplicacao(passo.explicacao)}</p>{passo.formula && <FormulaMatematica texto={passo.formula} />}
           </li>)}</ol>
           <p className="math-note">Resolução gerada por IA. Confira os passos e a expressão da foto.</p>
+          <details className="math-text-original"><summary>Ver resultado em texto</summary><code>{exibirMultiplicacao(resolucao.resultado ?? "")}</code></details>
         </> : <p className="math-status" role="status">{exibirMultiplicacao(resolucao.pergunta ?? "")}</p>}
         {resolucao.aviso && <p className="math-note">{exibirMultiplicacao(resolucao.aviso)}</p>}
       </div>}

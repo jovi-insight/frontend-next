@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { consumirLembretesCalendario, type LembreteCalendarioPendente } from "@/lib/api";
+import { type LembreteCalendarioPendente } from "@/lib/api";
+import { consultarLembretes, confirmarLembrete } from "@/lib/calendario-notificacoes";
 import { avisar } from "@/lib/avisos";
 import { rotuloLembrete, rotuloTipoEvento } from "@/lib/calendario";
 
@@ -19,7 +20,8 @@ async function notificarNoAparelho(lembrete: LembreteCalendarioPendente) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   if (!("serviceWorker" in navigator)) return;
 
-  const registro = await navigator.serviceWorker.ready;
+  const registro = await navigator.serviceWorker.getRegistration();
+  if (!registro || await registro.pushManager?.getSubscription()) return;
   await registro.showNotification(`Lembrete: ${lembrete.titulo}`, {
     body: `${descricao(lembrete)} · ${rotuloLembrete(lembrete.minutos_antes)}`,
     icon: "/icons/icon-192x192.png",
@@ -33,31 +35,48 @@ export default function LembretesCalendario() {
   useEffect(() => {
     let ativo = true;
     let consultando = false;
+    const exibidos = new Set<string>();
+    let requisicao: AbortController | null = null;
 
     async function consultar() {
-      if (!ativo || consultando) return;
+      if (!ativo || consultando || document.visibilityState !== "visible") return;
       consultando = true;
+      const controller = new AbortController(); requisicao = controller;
+      const prazo = setTimeout(() => controller.abort(), 15000);
       try {
-        const lembretes = await consumirLembretesCalendario();
+        const lembretes = await consultarLembretes(controller.signal);
         if (!ativo) return;
         for (const lembrete of lembretes) {
-          avisar(`Lembrete: ${lembrete.titulo} — ${descricao(lembrete)}`);
-          await notificarNoAparelho(lembrete).catch(() => undefined);
+          if (!ativo || controller.signal.aborted) return;
+          const chave = `${lembrete.evento_id}:${lembrete.versao}:${lembrete.minutos_antes}`;
+          if (!exibidos.has(chave)) {
+            avisar(`Lembrete: ${lembrete.titulo} — ${descricao(lembrete)}`);
+            await notificarNoAparelho(lembrete).catch(() => undefined);
+            exibidos.add(chave);
+          }
+          // Se a resposta se perder, tenta confirmar de novo sem repetir o toast.
+          await confirmarLembrete(lembrete, controller.signal);
         }
       } catch {
         // O calendário continua utilizável offline ou durante o cold start do backend.
       } finally {
+        clearTimeout(prazo);
         consultando = false;
       }
     }
 
-    const primeiraConsulta = window.setTimeout(() => void consultar(), 1800);
-    const intervalo = window.setInterval(() => void consultar(), 60_000);
-    const aoFocar = () => void consultar();
+    const solicitar = () => {
+      if (navigator.locks) void navigator.locks.request("insight-lembretes", { ifAvailable: true }, lock => lock ? consultar() : undefined);
+      else void consultar();
+    };
+    const primeiraConsulta = window.setTimeout(solicitar, 1800);
+    const intervalo = window.setInterval(solicitar, 60_000);
+    const aoFocar = solicitar;
     window.addEventListener("focus", aoFocar);
 
     return () => {
       ativo = false;
+      requisicao?.abort();
       window.clearTimeout(primeiraConsulta);
       window.clearInterval(intervalo);
       window.removeEventListener("focus", aoFocar);
