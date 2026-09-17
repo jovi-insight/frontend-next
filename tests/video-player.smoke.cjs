@@ -21,7 +21,7 @@ async function local(page) {
 async function main() {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'insight-video-smoke-'));
   const clip = path.join(temp, 'teste.mp4');
-  execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=160x120:d=0.3', '-c:v', 'libvpx-vp9', '-an', '-y', clip]);
+  execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=160x120:d=1.3', '-c:v', 'libvpx-vp9', '-an', '-y', clip]);
   const bytes = fs.readFileSync(clip);
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
   try {
@@ -50,7 +50,7 @@ async function main() {
           const form = await new Response(req.postDataBuffer(), { headers: { 'Content-Type': req.headers()['content-type'] } }).formData();
           assert.deepEqual(Buffer.from(await form.get('arquivo').arrayBuffer()), bytes);
           ids.push(form.get('envio_id'));
-          saved = { id: remoteId, nome: 'teste.mp4', mime_type: 'video/mp4', tamanho: bytes.length, duracao: 0.3, url_storage: 'https://storage.test/teste.mp4', criado_em: new Date().toISOString(), transcricao: null, resumo: null };
+          saved = { id: remoteId, nome: 'teste.mp4', mime_type: 'video/mp4', tamanho: bytes.length, duracao: 1.3, url_storage: 'https://storage.test/teste.mp4', criado_em: new Date().toISOString(), transcricao: null, resumo: null };
           if (uploads === 1) return route.abort('failed'); // simula resposta perdida após o servidor aceitar
           return route.fulfill({ status: 201, json: saved });
         }
@@ -70,13 +70,14 @@ async function main() {
           const pedido = indexedDB.open('jovi-media-library', 1);
           pedido.onupgradeneeded = () => pedido.result.createObjectStore('media', { keyPath: 'id' });
           pedido.onsuccess = () => { const db = pedido.result, tx = db.transaction('media', 'readwrite');
-            tx.objectStore('media').put({ id: 'vid-teste', name: 'teste:22:37.mp4', type: blob.type, size: blob.size, duration: 0.3, createdAt: new Date().toISOString(), blob, transcription: null, syncStatus: 'pendente', syncError: 'Envio anterior falhou.' });
+            tx.objectStore('media').put({ id: 'vid-teste', name: 'teste:22:37.mp4', type: blob.type, size: blob.size, duration: 1.3, createdAt: new Date().toISOString(), blob, transcription: null, syncStatus: 'pendente', syncError: 'Envio anterior falhou.' });
             tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(tx.error);
           };
         });
       }, bytes.toString('base64'));
       await page.goto(base + '/player/vid-teste');
       await page.waitForFunction(() => document.querySelector('video')?.readyState >= 1);
+      await page.locator('video').evaluate(async video => { await video.play(); video.pause(); });
       const button = page.getByRole('button', { name: 'Transcrever com IA' });
       await button.click();
       await page.getByRole('alert').filter({ hasText: 'campo obrigatório “media”' }).waitFor();
@@ -101,11 +102,13 @@ async function main() {
       assert.ok(ids[0]); assert.equal(patches, 2);
       await page.reload(); await page.getByText('Banco + offline', { exact: true }).waitFor();
       await page.waitForFunction(() => document.querySelector('video')?.readyState >= 1);
+      await page.locator('video').evaluate(async video => { await video.play(); video.pause(); });
       assert.equal((await local(page)).text, 'Teste de aula preservada.');
       assert.equal((await local(page)).size, bytes.length);
       assert.equal(transcriptions, 5);
       assert.deepEqual(errors, []);
       await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() => scrollTo(0, 0));
       if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, `video-${width}.png`), fullPage: true });
       const overflow = await page.evaluate(() => [...document.querySelectorAll('main *')].filter(el => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 8).map(el => ({ tag: el.tagName, cls: el.className, width: el.getBoundingClientRect().width, text: el.textContent?.slice(0, 65) })));
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), JSON.stringify(overflow));
