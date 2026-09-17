@@ -12,6 +12,7 @@ import {
   salvarTranscricao,
   salvarResumoVideo,
   removerVideo,
+  sincronizarVideo,
   type VideoItem,
   type Segmento,
 } from "@/lib/video-library";
@@ -46,10 +47,12 @@ function PlayerConteudo({ id }: { id: string }) {
   const [item, setItem] = useState<VideoItem | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [urlVideo, setUrlVideo] = useState<string | null>(null);
-  const [legendaLigada, setLegendaLigada] = useState(true);
+  const [legendaLigada, setLegendaLigada] = useState(false);
   const [transcrevendo, setTranscrevendo] = useState(false);
   const [gerandoResumo, setGerandoResumo] = useState(false);
   const [tempoAtual, setTempoAtual] = useState(0);
+  const [sincronizando, setSincronizando] = useState(false);
+  const transcricaoRef = useRef<AbortController | null>(null);
 
   const idiomaSalvo = useLocalStorage(CHAVE_IDIOMA, "pt");
   const [idioma, setIdioma] = useState(idiomaSalvo);
@@ -69,6 +72,7 @@ function PlayerConteudo({ id }: { id: string }) {
           return;
         }
         setItem(v);
+        setLegendaLigada(Boolean(v.transcription?.segments.length));
         if (v.blob) {
           url = URL.createObjectURL(v.blob);
           revogar = true;
@@ -85,6 +89,7 @@ function PlayerConteudo({ id }: { id: string }) {
 
     return () => {
       ativo = false;
+      transcricaoRef.current?.abort();
       if (url && revogar) URL.revokeObjectURL(url);
     };
   }, [id]);
@@ -116,20 +121,26 @@ function PlayerConteudo({ id }: { id: string }) {
 
   // Transcrição do vídeo via Gemini / microserviço
   const transcrever = useCallback(async () => {
-    if (!item) return false;
+    if (!item || transcricaoRef.current) return false;
+    const controle = new AbortController();
+    transcricaoRef.current = controle;
     setTranscrevendo(true);
     setErro(null);
     try {
       let midia = item.blob;
       if (!midia && item.remoteUrl) {
-        const resposta = await fetch(item.remoteUrl);
+        const resposta = await fetch(item.remoteUrl, { signal: AbortSignal.any([controle.signal, AbortSignal.timeout(60000)]) });
         if (!resposta.ok) throw new Error("Não foi possível baixar o vídeo salvo para transcrever.");
         midia = await resposta.blob();
       }
       if (!midia) throw new Error("O arquivo do vídeo não está disponível.");
-      const resultado = await transcreverMidia(midia, item.name);
+      if (item.size > 0 && midia.size !== item.size) throw new Error("O tamanho do vídeo não confere com a gravação salva. Baixe uma cópia e tente novamente; não limpe os dados do app.");
+      const resultado = await transcreverMidia(midia, item.name, controle.signal);
+      if (controle.signal.aborted) return false;
+      if (!resultado.text?.trim()) throw new Error("Não foi identificada fala neste vídeo. Ouça a gravação e confira se o microfone captou som; você pode tentar transcrever novamente.");
       const salvo = await salvarTranscricao(item.id, resultado);
       setItem(salvo);
+      setLegendaLigada(true);
       avisar(
         salvo.syncStatus === "sincronizado"
           ? "Vídeo transcrito e atualizado no banco!"
@@ -138,12 +149,13 @@ function PlayerConteudo({ id }: { id: string }) {
       );
       return true;
     } catch (e) {
-      setErro(
-        `${(e as Error).message} — confira a conexão com o backend ou a chave do Gemini.`,
-      );
+      setErro(controle.signal.aborted ? "Transcrição cancelada neste aparelho. O vídeo foi preservado."
+        : (e as Error).name === "TimeoutError" ? "O download do vídeo demorou demais. Tente novamente."
+        : (e as Error).message);
       return false;
     } finally {
       setTranscrevendo(false);
+      if (transcricaoRef.current === controle) transcricaoRef.current = null;
     }
   }, [item]);
 
@@ -152,8 +164,20 @@ function PlayerConteudo({ id }: { id: string }) {
       setLegendaLigada(false);
       return;
     }
-    if (!item?.transcription && !(await transcrever())) return;
+    if (!item?.transcription?.text && !(await transcrever())) return;
     setLegendaLigada(true);
+  }
+
+  async function tentarSincronizar() {
+    if (!item || sincronizando) return;
+    setSincronizando(true);
+    setErro(null);
+    try {
+      const atualizado = await sincronizarVideo(item.id);
+      setItem(atualizado);
+      if (atualizado.syncStatus === "sincronizado") avisar("Vídeo e transcrição sincronizados com o banco.", "sucesso");
+    } catch (e) { setErro((e as Error).message); }
+    finally { setSincronizando(false); }
   }
 
   // Geração de Resumo inteligente por IA para o vídeo
@@ -291,9 +315,9 @@ function PlayerConteudo({ id }: { id: string }) {
 
   return (
     <>
-      <TopHeader titulo="Vídeo" voltarPara="/library" />
+      <TopHeader titulo="Vídeo" voltarPara="/library" areaSegura />
 
-      <main className="container archive-main">
+      <main className="container archive-main" style={{ paddingTop: "calc(96px + env(safe-area-inset-top, 0px))" }}>
         <nav className="breadcrumb">
           <Link href="/library" style={{ textDecoration: "none", color: "inherit" }}>
             Recentes
@@ -340,7 +364,7 @@ function PlayerConteudo({ id }: { id: string }) {
             className="flex items-center justify-between"
             style={{ marginTop: 14, flexWrap: "wrap", gap: 10 }}
           >
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 className={`video-toggle-btn${legendaLigada ? " ativo" : ""}`}
@@ -358,7 +382,7 @@ function PlayerConteudo({ id }: { id: string }) {
                     : "Ativar legenda"}
               </button>
 
-              {!item?.transcription && !transcrevendo && (
+              {!textoFala && !transcrevendo && (
                 <button
                   type="button"
                   className="chip chip-primario"
@@ -370,6 +394,9 @@ function PlayerConteudo({ id }: { id: string }) {
                   Transcrever com IA
                 </button>
               )}
+              {transcrevendo && (
+                <button type="button" className="chip" onClick={() => transcricaoRef.current?.abort()}>Cancelar transcrição</button>
+              )}
             </div>
 
             <div className="secao-acoes">
@@ -379,7 +406,8 @@ function PlayerConteudo({ id }: { id: string }) {
                 </span>
                 Compartilhar
               </button>
-              <button type="button" className="chip chip-perigo" onClick={excluirVideo}>
+              {urlVideo && <a className="chip" href={urlVideo} download={item.name}>Baixar vídeo</a>}
+              <button type="button" className="chip chip-perigo" onClick={excluirVideo} disabled={transcrevendo || sincronizando}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                   delete
                 </span>
@@ -387,6 +415,8 @@ function PlayerConteudo({ id }: { id: string }) {
               </button>
             </div>
           </div>
+          {transcrevendo && <p role="status" style={{ fontSize: 13, marginTop: 12 }}>Enviando e transcrevendo… Pode levar alguns minutos. Mantenha esta tela aberta; a gravação original será preservada.</p>}
+          {erro && <p role="alert" style={{ color: "var(--error)", fontSize: 13, marginTop: 12, overflowWrap: "anywhere" }}>{erro}</p>}
         </section>
 
         {/* Grade de Conteúdo e Estudo igual à de Imagens/Aulas */}
@@ -616,9 +646,17 @@ function PlayerConteudo({ id }: { id: string }) {
                 <div className="flex items-center justify-between">
                   <span style={{ color: "var(--on-surface-variant)" }}>Sincronização</span>
                   <span>
-                    {item.syncStatus === "sincronizado" ? "Banco + offline" : "Pendente"}
+                    {item.syncStatus === "sincronizado" ? item.blob ? "Banco + offline" : "Salvo no banco" : "Pendente"}
                   </span>
                 </div>
+                {item.syncStatus !== "sincronizado" && (
+                  <div style={{ fontSize: 13, overflowWrap: "anywhere" }}>
+                    <p role="status">{item.syncError || "Este vídeo ainda não tem sincronização confirmada. Mantenha a cópia deste aparelho."}</p>
+                    <button type="button" className="chip" onClick={tentarSincronizar} disabled={sincronizando || transcrevendo} style={{ marginTop: 10 }}>
+                      {sincronizando ? "Sincronizando…" : "Tentar sincronizar"}
+                    </button>
+                  </div>
+                )}
                 {item.transcription?.language && (
                   <div className="flex items-center justify-between">
                     <span style={{ color: "var(--on-surface-variant)" }}>Idioma falado</span>
@@ -684,11 +722,6 @@ function PlayerConteudo({ id }: { id: string }) {
           </section>
         )}
 
-        {erro && (
-          <p role="alert" style={{ color: "var(--error)", fontSize: 12, marginTop: 16 }}>
-            {erro}
-          </p>
-        )}
       </main>
     </>
   );
