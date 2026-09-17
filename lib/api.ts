@@ -5,6 +5,8 @@
  * mesmo contrato — o backend não muda por causa da migração.
  */
 
+import { erroDeMidia, prepararMidia } from "./midia-upload";
+
 export const BASE_URL = "https://backend-rhlz.onrender.com";
 
 // ─── Tipos das respostas ──────────────────────────────────
@@ -430,21 +432,31 @@ export async function excluirConteudoPermanentemente(conteudoId: string): Promis
 export async function enviarVideoUsuario(
   arquivo: File,
   duracao = 0,
+  envioId?: string,
 ): Promise<VideoUsuario> {
+  const copia = await prepararMidia(arquivo, arquivo.name, 250);
   const form = new FormData();
-  form.append("arquivo", arquivo, arquivo.name || "video.webm");
-  form.append("duracao", String(Math.max(0, Number(duracao) || 0)));
-  const res = await fetch(`${BASE_URL}/videos`, { method: "POST", body: form });
-  return handle(res, "Falha ao sincronizar o vídeo");
+  form.append("arquivo", copia, copia.name);
+  form.append("duracao", String(Number.isFinite(duracao) ? Math.max(0, duracao) : 0));
+  if (envioId) form.append("envio_id", envioId);
+  try {
+    const res = await fetch(`${BASE_URL}/videos`, { method: "POST", body: form, signal: AbortSignal.timeout(120000) });
+    if (!res.ok) throw await erroDeMidia(res, "Falha ao sincronizar o vídeo");
+    return await res.json();
+  } catch (erro) {
+    if ((erro as Error).name === "TimeoutError") throw new Error("O servidor demorou para receber o vídeo. Ele continua neste aparelho; use Tentar sincronizar.");
+    if (erro instanceof TypeError) throw new Error("Sem conexão com o servidor. O vídeo continua neste aparelho; tente sincronizar novamente.");
+    throw erro;
+  }
 }
 
 export async function listarVideosUsuario(): Promise<VideoUsuario[]> {
-  const res = await fetch(`${BASE_URL}/videos`);
+  const res = await fetch(`${BASE_URL}/videos`, { signal: AbortSignal.timeout(15000), cache: "no-store" });
   return handle(res, "Falha ao carregar os vídeos do banco");
 }
 
 export async function obterVideoUsuario(id: string): Promise<VideoUsuario> {
-  const res = await fetch(`${BASE_URL}/videos/${id}`);
+  const res = await fetch(`${BASE_URL}/videos/${id}`, { signal: AbortSignal.timeout(20000) });
   return handle(res, "Falha ao buscar o vídeo no banco");
 }
 
@@ -452,8 +464,17 @@ export async function atualizarVideoUsuario(
   id: string,
   dados: { transcricao?: Record<string, unknown> | null; resumo?: string | null },
 ): Promise<VideoUsuario> {
-  const res = await pedirJson(`/videos/${id}`, "PATCH", dados);
-  return handle(res, "Falha ao atualizar o vídeo no banco");
+  try {
+    const res = await fetch(`${BASE_URL}/videos/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados), signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw await erroDeMidia(res, "Falha ao atualizar o vídeo");
+    return await res.json();
+  } catch (erro) {
+    if ((erro as Error).name === "TimeoutError") throw new Error("O servidor demorou para salvar a transcrição. Ela continua neste aparelho; tente sincronizar novamente.");
+    if (erro instanceof TypeError) throw new Error("Não foi possível sincronizar a transcrição. Ela continua neste aparelho; tente novamente quando houver conexão.");
+    throw erro;
+  }
 }
 
 export async function removerVideoUsuario(id: string): Promise<null> {

@@ -1,5 +1,6 @@
 import { BASE_URL } from "./api";
 import type { StatusAtualizacaoAutomatica } from "./libras-auto-training";
+import { erroDeMidia, prepararMidia } from "./midia-upload";
 
 /**
  * Módulo de Libras e Transcrição integrado ao backend da JOVI.
@@ -86,19 +87,22 @@ export type PredicaoLibras = {
 };
 
 /** POST /v1/media/transcribe — o Gemini transcreve com marcação de tempo. */
-export async function transcreverMidia(arquivo: Blob, nome = "midia"): Promise<RespostaTranscricao> {
-  if (!(arquivo instanceof Blob)) throw new Error("Selecione um arquivo de áudio ou vídeo.");
+export async function transcreverMidia(arquivo: Blob, nome = "midia", signal?: AbortSignal): Promise<RespostaTranscricao> {
+  const copia = await prepararMidia(arquivo, nome, 200);
 
   const controle = new AbortController();
   // Vídeo de aula inteira leva minutos; o padrão do fetch cortaria antes.
   const limite = setTimeout(() => controle.abort(), DEZ_MINUTOS);
+  const cancelar = () => controle.abort();
+  signal?.addEventListener("abort", cancelar, { once: true });
+  if (signal?.aborted) controle.abort();
 
   const cabecalhos: HeadersInit = {};
   const chave = apiKeyLibras();
   if (chave) cabecalhos["X-API-Key"] = chave;
 
   const form = new FormData();
-  form.append("media", arquivo, nome);
+  form.append("media", copia, copia.name);
 
   try {
     const resposta = await fetch(`${baseUrlLibras()}/v1/media/transcribe`, {
@@ -107,22 +111,23 @@ export async function transcreverMidia(arquivo: Blob, nome = "midia"): Promise<R
       body: form,
       signal: controle.signal,
     });
-    const corpo = await resposta.json().catch(() => ({}));
     if (!resposta.ok) {
-      throw new Error(
-        typeof corpo.detail === "string"
-          ? corpo.detail
-          : `Falha na transcrição (HTTP ${resposta.status})`,
-      );
+      throw await erroDeMidia(resposta, "Falha na transcrição");
+    }
+    const corpo = await resposta.json().catch(() => null);
+    if (!corpo || typeof corpo.text !== "string" || !Array.isArray(corpo.segments)) {
+      throw new Error("O servidor devolveu uma transcrição inválida. Seu vídeo foi preservado; tente novamente.");
     }
     return corpo;
   } catch (erro) {
     if ((erro as Error).name === "AbortError") {
-      throw new Error("A transcrição demorou mais de 10 minutos.");
+      throw new Error(signal?.aborted ? "Transcrição cancelada neste aparelho. O vídeo foi preservado." : "A transcrição demorou mais de 10 minutos. O vídeo foi preservado; tente um trecho menor.");
     }
+    if (erro instanceof TypeError) throw new Error("Não foi possível alcançar o servidor de transcrição. Confira a conexão e tente novamente; seu vídeo permanece no aparelho.");
     throw erro;
   } finally {
     clearTimeout(limite);
+    signal?.removeEventListener("abort", cancelar);
   }
 }
 

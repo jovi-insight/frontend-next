@@ -11,12 +11,17 @@ import Link from "next/link";
 export default function TopHeader({
   titulo = "INSIGHT",
   voltarPara = "/library",
+  areaSegura = false,
 }: {
   titulo?: string;
   voltarPara?: string;
+  areaSegura?: boolean;
 }) {
   return (
-    <header className="top-header">
+    <header className="top-header" style={areaSegura ? {
+      height: "calc(64px + env(safe-area-inset-top, 0px))",
+      paddingTop: "env(safe-area-inset-top, 0px)",
+    } : undefined}>
       <div className="flex items-center gap-4">
         <Link
           href={voltarPara}
