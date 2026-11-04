@@ -46,3 +46,7 @@ A entrega é conjunta e deve ser feita por um único integrante, incluindo o ZIP
 ## Acesso e pacote de entrega
 
 O README contém a seção **Abrir o aplicativo sem instalar nada**, com apresentação em https://frontend-next-topaz-mu.vercel.app/#inicio, acesso direto a `/login`, login `professor@insight.com`, senha `Insight@2026` e repositório https://github.com/jovi-insight/frontend-next. O ZIP foi regenerado em `entrega/insight-sprint4.zip`. O teste HTTP de produção foi repetido com sucesso: 13 rotas privadas, páginas públicas, login, logout e 17 assets.
+
+## Correção do pacote completo
+
+O pacote foi refeito para incluir também o código do backend em `backend/`, com modelos, SQL, requirements, testes e exemplos de configuração. `README.md` e `INTEGRANTES.TXT` estão diretamente na raiz do ZIP, junto ao código e às configurações do frontend. `CHECKLIST_ENTREGA.md` relaciona os requisitos aos arquivos; `ARQUIVOS_SHA256.txt` contém o inventário. O empacotador extraiu e comparou todos os arquivos, verificou sintaxe dos arquivos Python e consistência do lockfile. Isso valida a integridade do pacote, não substitui a execução dos serviços externos. Credenciais reais, ambientes virtuais e dependências instaladas foram excluídos.

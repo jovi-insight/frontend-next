@@ -44,7 +44,7 @@ npm run setup
 npm run dev
 ```
 
-Se recebeu o ZIP, extraia e abra um terminal na pasta `insight-sprint4`, então execute os três últimos comandos. Acesse **http://localhost:3000**. `npm run setup` cria `.env.local` com uma chave de sessão aleatória e não sobrescreve configuração existente.
+Se recebeu o ZIP, extraia-o em uma pasta de sua escolha e abra um terminal na pasta onde estão `README.md` e `package.json`, então execute `npm ci`, `npm run setup` e `npm run dev`. Acesse **http://localhost:3000**. `npm run setup` cria `.env.local` com uma chave de sessão aleatória e não sobrescreve configuração existente.
 
 Câmera e microfone exigem permissão e contexto seguro: `localhost` ou HTTPS. Acessar um IP da rede por HTTP pode impedir a captura. OCR, resumo, quiz, tradução e sincronização dependem da disponibilidade e das cotas do backend.
 
@@ -87,16 +87,17 @@ O build utiliza Webpack para compatibilidade com ambientes que restringem proces
 
 ### Backend local (opcional)
 
-O backend é um serviço separado. Para executá-lo, instale Python 3.12+, PostgreSQL e configure Supabase Storage e as chaves de IA, conforme o README do repositório do backend:
+O código completo do backend está incluído na pasta `backend/` do ZIP. Para executá-lo, instale Python 3.12+, PostgreSQL e configure Supabase Storage e as chaves de IA, conforme `backend/README.md`. Partindo da pasta extraída:
 
 ```bash
-git clone https://github.com/jovi-insight/backend.git
 cd backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
+
+Se estiver usando somente o checkout Git do frontend, obtenha primeiro o backend com `git clone https://github.com/jovi-insight/backend.git backend`. No ZIP isso não é necessário.
 
 No Windows, ative com `.venv\Scripts\activate` e copie o arquivo com `copy .env.example .env`. Edite o `.env` do backend preenchendo `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_BUCKET` e `GROQ_API_KEY`; configure `ELEVENLABS_API_KEY` se usar narração. Serviços opcionais, modelos de IA e notificações têm variáveis adicionais documentadas no backend.
 
@@ -150,6 +151,10 @@ Use `npm ci` para instalação e `npm run build` para compilação. Depois do pu
 npm run package
 ```
 
-Gera `entrega/insight-sprint4.zip` com código-fonte, assets, lockfile, documentação, `.env.example` e **INTEGRANTES.TXT** na raiz interna. Exclui dependências instaladas, builds, Git e segredos locais. O ZIP contém o frontend completo; a API é consumida remotamente e pode ser instalada separadamente pelas instruções acima.
+Gera **`entrega/insight-sprint4.zip`**, um único pacote para as duas disciplinas, com **README.md e INTEGRANTES.TXT diretamente na raiz do ZIP**. Inclui o código completo do frontend React, a Landing Page integrada, assets, configurações, lockfile e o backend em `backend/`, com requisitos Python, modelos, SQL e `.env.example`.
+
+Inclui também `CHECKLIST_ENTREGA.md`, relacionando os requisitos aos arquivos, e `ARQUIVOS_SHA256.txt`, com o inventário do pacote. O empacotador extrai o arquivo temporariamente e compara cada arquivo antes de salvar o ZIP final.
+
+Para recriar o pacote a partir deste repositório, o backend deve estar em `../backend`, em `./backend` ou na pasta indicada por `INSIGHT_BACKEND_DIR`. No pacote extraído, `backend/` já está presente. Dependências instaladas (`node_modules`, `venv`), builds, histórico Git e segredos locais não são distribuídos; as dependências são reinstaladas pelos comandos documentados. O uso de serviços externos com configuração própria continua exigindo suas próprias contas e chaves. Para avaliar pelo deploy, nenhuma instalação é necessária.
 
 Apenas **um aluno** deve entregar o ZIP e informar os links do Git e da Vercel. Antes do envio, confirme que o deploy contém a mesma versão do código e execute o roteiro de avaliação.
