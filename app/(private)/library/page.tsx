@@ -109,7 +109,7 @@ function LibraryConteudo() {
 
   return <>
     <main className="container archive-main sem-topbar">
-      <nav className="breadcrumb"><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Início</Link><span aria-hidden="true">›</span><span>{verLixeira ? "Lixeira" : "Biblioteca"}</span></nav>
+      <nav className="breadcrumb"><Link href="/camera" style={{ color: "inherit", textDecoration: "none" }}>Início</Link><span aria-hidden="true">›</span><span>{verLixeira ? "Lixeira" : "Biblioteca"}</span></nav>
       {!verLixeira && <div className="secao-acoes" style={{ marginBottom: 20 }}>
         <button className="chip" type="button" aria-expanded={videosAbertos} onClick={() => setVideosAbertos(v => !v)}>{videosAbertos ? "Ocultar vídeos" : "Ver vídeos e aulas gravadas"}</button>
       </div>}

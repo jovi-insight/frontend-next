@@ -42,3 +42,6 @@ next-env.d.ts
 .superpowers/
 .teste-build/
 /public/vendor/math-ocr/
+
+!.env.example
+/entrega/

@@ -1,10 +1,10 @@
 {
-  "name": "-y",
+  "name": "insight-sprint4",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test:math": "tsc lib/nerdamer.d.ts lib/matematica.ts lib/matematica-avancada.ts lib/matematica-leitura.ts --outDir .teste-build/matematica --module commonjs --target es2022 --esModuleInterop true --skipLibCheck && node tests/matematica.test.cjs",
@@ -14,7 +14,12 @@
     "test:video": "node tests/video-upload.test.cjs && node tests/video-gravador.test.cjs",
     "test:video:player": "node tests/video-player.smoke.cjs && node tests/video-library.smoke.cjs",
     "posttest": "npm run test:math && npm run test:math:formatacao && node tests/sw-lembretes.test.cjs && npm run test:video",
-    "test": "tsc lib/estudo.ts lib/perfil.ts lib/use-local-storage.ts lib/paginas-aula.ts lib/video-vtt.ts lib/libras-auto-training.ts lib/libras-estabilidade.ts --outDir .teste-build --module es2022 --target es2022 --moduleResolution bundler && sed -i 's|\"./use-local-storage\"|\"./use-local-storage.js\"|' .teste-build/perfil.js && node tests/estudo.test.mjs && node tests/perfil.test.mjs && node tests/paginas-aula.test.mjs && node tests/video-vtt.test.mjs && node tests/libras-auto-training.test.mjs && node tests/libras-dynamic.test.cjs && node tests/libras-estabilidade.test.mjs"
+    "test": "tsc lib/estudo.ts lib/perfil.ts lib/use-local-storage.ts lib/paginas-aula.ts lib/video-vtt.ts lib/libras-auto-training.ts lib/libras-estabilidade.ts --outDir .teste-build --module es2022 --target es2022 --moduleResolution bundler && node scripts/fix-test-imports.mjs && node tests/estudo.test.mjs && node tests/perfil.test.mjs && node tests/paginas-aula.test.mjs && node tests/video-vtt.test.mjs && node tests/libras-auto-training.test.mjs && node tests/libras-dynamic.test.cjs && node tests/libras-estabilidade.test.mjs",
+    "setup": "node scripts/setup.mjs",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:auth": "node --experimental-strip-types tests/session.test.mjs",
+    "package": "python3 scripts/package.py",
+    "test:auth:http": "node tests/auth-http.mjs"
   },
   "dependencies": {
     "katex": "0.18.7",
@@ -32,5 +37,8 @@
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

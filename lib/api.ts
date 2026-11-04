@@ -7,7 +7,7 @@
 
 import { erroDeMidia, prepararMidia } from "./midia-upload";
 
-export const BASE_URL = "https://backend-rhlz.onrender.com";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://backend-rhlz.onrender.com";
 
 // ─── Tipos das respostas ──────────────────────────────────
 export type Imagem = { id: string; id_conteudo: string; url_storage: string };

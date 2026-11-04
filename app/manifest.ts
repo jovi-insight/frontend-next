@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "INSIGHT — Capture, estude e evolua",
     short_name: "INSIGHT",
     description: "Captura inteligente de aulas, transcrição, resumos por IA e acessibilidade.",
-    start_url: "/",
+    start_url: "/camera",
     id: "/",
     scope: "/",
     display: "standalone",

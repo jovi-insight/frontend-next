@@ -3,21 +3,10 @@
  * Cache básico para app shell, fontes e assets estáticos.
  */
 
-const CACHE_NAME = "insight-pwa-v18-video-confiavel";
+const CACHE_NAME = "insight-pwa-v19-auth";
 const IMAGE_CACHE_NAME = "insight-images-v2";
 const VALID_CACHE_NAMES = new Set([CACHE_NAME, IMAGE_CACHE_NAME]);
-const ASSETS_TO_CACHE = [
-  "/",
-  "/library",
-  "/folders",
-  "/settings",
-  "/calendar",
-  "/libras-training",
-  "/translate",
-  "/manifest.json",
-  "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
-];
+const ASSETS_TO_CACHE = ["/manifest.json", "/icons/icon-192x192.png", "/icons/icon-512x512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -44,6 +33,8 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Documentos e respostas RSC precisam sempre validar a sessão no servidor.
+  if (event.request.mode === "navigate" || event.request.headers.has("RSC") || event.request.url.includes("/api/")) return;
   // OCR versionado: cache-first evita baixar o motor/modelo a cada ativação.
   const url = new URL(event.request.url);
   if (event.request.method === "GET" && url.origin === self.location.origin && url.pathname.startsWith("/vendor/math-ocr/7.0.0/")) {

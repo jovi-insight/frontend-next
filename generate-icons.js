@@ -5,7 +5,6 @@ const path = require('path');
 // SVG do ícone INSIGHT - Estética Premium Ultra-Moderna
 function getSvg(size, isMaskable = false) {
   const cornerRadius = isMaskable ? 0 : size * 0.22;
-  const padding = isMaskable ? size * 0.12 : 0; // safe area para maskable
   
   return `
 <svg width="${size}" height="${size}" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">

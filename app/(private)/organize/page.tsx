@@ -215,7 +215,7 @@ function OrganizeConteudo() {
             Nenhum documento escaneado. Volte à câmera e use o modo SCAN.
           </p>
           {/* Sem isto a tela vazia não tem saída: aqui não há barra inferior. */}
-          <Link href="/" className="focus-link" style={{ marginTop: 20 }}>
+          <Link href="/camera" className="focus-link" style={{ marginTop: 20 }}>
             Ir para a câmera
           </Link>
         </div>
@@ -225,7 +225,7 @@ function OrganizeConteudo() {
 
   return (
     <>
-      <TopHeader titulo="Organizar" voltarPara="/" />
+      <TopHeader titulo="Organizar" voltarPara="/camera" />
 
       <main className="container archive-main">
         {imagensLista.length > 0 && (

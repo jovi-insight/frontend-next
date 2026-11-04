@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#f4f5f7"/>
+  <rect x="80" y="70" width="180" height="64" rx="7" fill="#ffd600"/>
+  <text x="105" y="115" fill="#242933" font-family="Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="4">JOVI</text>
+  <text x="800" y="285" text-anchor="middle" fill="#242933" font-family="Arial, sans-serif" font-size="92" font-weight="700" letter-spacing="-4">INSIGHT</text>
+  <text x="800" y="370" text-anchor="middle" fill="#111318" font-family="Arial, sans-serif" font-size="32" font-weight="700">O quadro apaga. O aprendizado fica.</text>
+  <circle cx="800" cy="515" r="74" fill="#242933"/>
+  <path d="m780 475 68 40-68 40Z" fill="#ffd600"/>
+  <text x="800" y="675" text-anchor="middle" fill="#8a9099" font-family="Arial, sans-serif" font-size="18" letter-spacing="3">SOLUÇÃO INSIGHT · JOVI CHALLENGE 2026</text>
+</svg>

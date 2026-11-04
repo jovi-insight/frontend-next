@@ -1,11 +1,5 @@
-/* O design system do JOVI vem inteiro do projeto vanilla (app/styles/jovi.css,
-   cópia de frontend/css/main.css). São ~4.100 linhas de tokens, temas de
-   acessibilidade e componentes já validados — reescrever isso em utilitários
-   não mudaria um pixel na tela.
- 
-   O Tailwind do create-next-app foi retirado de propósito: o jovi.css aplica
-   font-family com !important em `*`, e o preflight só brigaria com ele. Se um
-   dia fizer falta, dá para reintroduzir importando antes desta linha. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+@import "./tailwind.css";
 @import "./styles/jovi.css";
 
 /* No vanilla estes títulos repetiam o mesmo bloco de style inline em toda

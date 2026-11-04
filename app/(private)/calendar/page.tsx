@@ -235,7 +235,7 @@ function CalendarioConteudo() {
               <span className="material-symbols-outlined" aria-hidden="true">add</span>
               Novo evento
             </button>
-            <Link href="/" className="calendario-capturar-btn">
+            <Link href="/camera" className="calendario-capturar-btn">
               <span className="material-symbols-outlined" aria-hidden="true">document_scanner</span>
               Abrir SCAN
             </Link>

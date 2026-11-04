@@ -12,7 +12,7 @@ function load(file) {
   const module = { exports: {} }; loaded.set(file, module.exports);
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   vm.runInNewContext(code, { module, exports: module.exports, require: name => load(path.resolve(path.dirname(file), name + '.ts')),
-    Blob, File, FormData, Response, Request, AbortController, AbortSignal, Uint8Array, ArrayBuffer, TypeError, Error,
+    process: { env: {} }, Blob, File, FormData, Response, Request, AbortController, AbortSignal, Uint8Array, ArrayBuffer, TypeError, Error,
     setTimeout, clearTimeout, fetch: (...args) => fetcher(...args) });
   return module.exports;
 }

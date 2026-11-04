@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+const base = process.env.TEST_BASE_URL || 'http://localhost:3100';
+const request = (path, options = {}) => fetch(base + path, { redirect: 'manual', ...options });
+const authHeaders = { 'Content-Type': 'application/json', Origin: base };
+const pages = ['/camera', '/library', '/folders', '/settings', '/translate', '/libras-training', '/calendar', '/organize', '/player/test', '/summary/test', '/focus/test', '/calendar/test', '/calendar/test/edit'];
+for (const page of pages) {
+  const response = await request(page);
+  assert.equal(response.status, 307, page);
+  assert.equal(response.headers.get('location'), '/login', page);
+}
+for (const page of ['/', '/login']) assert.equal((await request(page)).status, 200, page);
+assert.equal((await request('/api/session', { method: 'POST', headers: authHeaders, body: JSON.stringify({ email: 'professor@insight.com', password: 'wrong' }) })).status, 401);
+assert.equal((await request('/api/session', { method: 'POST', headers: { ...authHeaders, Origin: 'https://other.example' }, body: '{}' })).status, 403);
+assert.equal((await request('/api/session', { method: 'POST', headers: authHeaders, body: 'invalid' })).status, 400);
+const login = await request('/api/session', { method: 'POST', headers: authHeaders, body: JSON.stringify({ email: 'professor@insight.com', password: 'Insight@2026' }) });
+assert.equal(login.status, 200);
+const setCookie = login.headers.get('set-cookie');
+assert.match(setCookie, /HttpOnly/i);
+assert.match(setCookie, /SameSite=lax/i);
+const cookie = setCookie.split(';')[0];
+for (const page of pages) assert.equal((await request(page, { headers: { Cookie: cookie } })).status, 200, page);
+assert.equal((await request('/library', { headers: { Cookie: 'insight_session=forged' } })).status, 307);
+const logout = await request('/api/session', { method: 'DELETE', headers: { Origin: base, Cookie: cookie } });
+assert.equal(logout.status, 200);
+assert.match(logout.headers.get('set-cookie'), /Max-Age=0/i);
+assert.equal((await request('/library')).status, 307);
+const landing = await (await request('/')).text();
+assert.match(landing, /Da aula para o conteúdo/);
+const assets = [...new Set([...landing.matchAll(/(?:src|poster)="(\/landing\/[^\"]+)"/g)].map(match => match[1]))];
+for (const path of assets) assert.equal((await request(path, { method: 'HEAD' })).status, 200, path);
+console.log(`HTTP: ${pages.length} rotas privadas, páginas públicas, login, erros, logout e ${assets.length} assets OK.`);

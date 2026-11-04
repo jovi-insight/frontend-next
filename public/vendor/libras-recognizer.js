@@ -147,7 +147,7 @@
             this.model = null;
             try {
                 if (global.localStorage) global.localStorage.removeItem(this.storageKey);
-            } catch (_) {
+            } catch {
                 // A rede continua limpa em memória mesmo se o armazenamento falhar.
             }
         }

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 // No vanilla cada página marcava o item ativo à mão. Aqui o pathname resolve
 // isso sozinho — é o único motivo de o componente ser client.
 const ITENS = [
-  { href: "/", icone: "photo_camera", rotulo: "Câmera" },
+  { href: "/camera", icone: "photo_camera", rotulo: "Câmera" },
   { href: "/calendar", icone: "calendar_month", rotulo: "Calendário" },
   { href: "/library", icone: "history", rotulo: "Recentes" },
   { href: "/folders", icone: "folder_open", rotulo: "Pastas" },
@@ -19,7 +19,7 @@ export default function BottomNav() {
   return (
     <nav className="bottom-nav">
       {ITENS.map(({ href, icone, rotulo }) => {
-        const ativo = href === "/" ? atual === "/" : atual.startsWith(href);
+        const ativo = href === "/camera" ? atual === "/camera" : atual.startsWith(href);
         return (
           <Link
             key={href}

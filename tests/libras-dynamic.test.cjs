@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 const assert = require('node:assert/strict');
 const LibrasAlphabetRecognizer = require('../public/vendor/libras-recognizer.js');
 

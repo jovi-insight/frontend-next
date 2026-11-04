@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { criarToken, validarToken, DURACAO_SESSAO } from '../lib/session-token.ts';
+process.env.SESSION_SECRET = randomBytes(32).toString('hex');
+const now = 1700000000000;
+const token = criarToken(now);
+assert.equal(validarToken(token, now), true);
+assert.equal(validarToken(token, now + DURACAO_SESSAO * 1000), false);
+assert.equal(validarToken(undefined, now), false);
+assert.equal(validarToken('invalid', now), false);
+const [payload, signature] = token.split('.');
+const forged = Buffer.from(JSON.stringify({ sub: 'professor', exp: 9999999999 })).toString('base64url');
+assert.equal(validarToken(`${forged}.${signature}`, now), false);
+assert.equal(validarToken(`${payload}.abc`, now), false);
+assert.equal(validarToken(`${token}.extra`, now), false);
+process.env.SESSION_SECRET = randomBytes(32).toString('hex');
+assert.equal(validarToken(token, now), false);
+console.log('Sessão: assinatura, adulteração, expiração e rotação de chave verificadas.');

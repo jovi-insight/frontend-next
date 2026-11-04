@@ -1,5 +1,7 @@
+import { exigirSessao } from "@/lib/session";
+import Sair from "@/components/Sair";
 import type { Metadata, Viewport } from "next";
-import "./globals.css";
+import "../globals.css";
 import AplicaPerfil from "@/components/AplicaPerfil";
 import Avisos from "@/components/Avisos";
 import PwaRegister from "@/components/PwaRegister";
@@ -31,7 +33,8 @@ export const viewport: Viewport = {
   themeColor: "#121212",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await exigirSessao();
   return (
     <html lang="pt-BR">
       <head>
@@ -48,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
         />
       </head>
       <body>
@@ -58,6 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* O perfil precisa valer em toda página, não só na tela de Ajustes. */}
         <AplicaPerfil />
         {children}
+        <Sair />
         <Avisos />
       </body>
     </html>
