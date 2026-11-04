@@ -37,8 +37,12 @@ Os testes de HTTP utilizam `npm start -- --port 3100` em um terminal e `npm run 
 
 - **Publicação:** concluída no projeto existente `jovi-insight/frontend-next`, autorizado pelo usuário. Deploy `dpl_7eph48Muyd89yQcSCA5TMAv2RUaA`, estado READY, alias https://frontend-next-topaz-mu.vercel.app/. SESSION_SECRET configurada como segredo de produção. Credenciais de demonstração e endereço da API usam os padrões documentados.
 - **Responsividade visual:** breakpoints preservados da Landing Page (1120, 900 e 640 px) e aplicativo; utilitários responsivos no login. Não houve inspeção visual porque não havia navegador conectado nesta sessão. Executar o roteiro de 390 × 844, 768 × 1024 e 1440 × 900 do README antes da entrega.
-- **API remota:** a primeira consulta de leitura a `/materias` excedeu 30 segundos; a segunda respondeu HTTP 500. É necessário verificar os logs/configuração do backend no Render antes de declarar a integração homologada. OCR, IA, gravação real e notificações dependem também de permissões, dispositivos e serviços.
+- **API remota — reteste após recuperação do Supabase informada pela equipe:** `/materias`, `/dashboard/recentes?limit=1`, `/pastas` e `/calendario/eventos` responderam HTTP 200 com JSON válido. O erro HTTP 500 anteriormente observado em `/materias` não se repetiu. A recuperação é compatível com o relato da equipe, mas a causa anterior não foi confirmada por logs. OCR, geração de IA, gravação real e notificações não foram testados neste reteste; dependem também de permissões, dispositivos e serviços.
 - **Autenticação:** conta de avaliação compartilhada; proteção de páginas não equivale a isolamento multiusuário dos dados da API existente.
 - **Contato da Landing Page:** formulário preservado com `mailto:`, depende de cliente de e-mail configurado; não há servidor de envio de mensagens.
 
 A entrega é conjunta e deve ser feita por um único integrante, incluindo o ZIP, o link Git e o link Vercel. Não há garantia de nota: os itens externos acima precisam ser conferidos antes do envio.
+
+## Acesso e pacote de entrega
+
+O README contém a seção **Abrir o aplicativo sem instalar nada**, com apresentação em https://frontend-next-topaz-mu.vercel.app/#inicio, acesso direto a `/login`, login `professor@insight.com`, senha `Insight@2026` e repositório https://github.com/jovi-insight/frontend-next. O ZIP foi regenerado em `entrega/insight-sprint4.zip`. O teste HTTP de produção foi repetido com sucesso: 13 rotas privadas, páginas públicas, login, logout e 17 assets.

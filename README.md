@@ -2,12 +2,24 @@
 
 Evolução da solução **INSIGHT para a JOVI Challenge FIAP 2026**, em uma única aplicação React. A Landing Page da Sprint 03 foi migrada de HTML/CSS/JavaScript para componentes React em `/`, preservando identidade, textos, imagens, vídeo, equipe e seções. Menu, fluxo de aprendizagem e carrossel agora usam estado e hooks React. O aplicativo de captura e estudo fica em `/camera`, com acesso pela página de login.
 
-- **Deploy Vercel:** https://frontend-next-topaz-mu.vercel.app/
+- **Deploy Vercel:** https://frontend-next-topaz-mu.vercel.app/#inicio
 - **Repositório Git:** https://github.com/jovi-insight/frontend-next
 - **Backend:** https://github.com/jovi-insight/backend
 - **Integrantes:** [INTEGRANTES.TXT](INTEGRANTES.TXT)
 
 A versão integrada foi publicada no projeto existente `frontend-next` da equipe `jovi-insight`. Consulte os resultados e limites da validação em `docs/sprint4/validacao-web.md`.
+
+## Abrir o aplicativo sem instalar nada
+
+1. Abra a apresentação: https://frontend-next-topaz-mu.vercel.app/#inicio
+2. Clique em **Acessar aplicativo**, ou abra diretamente https://frontend-next-topaz-mu.vercel.app/login.
+3. Entre com **Login:** `professor@insight.com` e **Senha:** `Insight@2026`.
+4. Você será direcionado para `/camera`. Autorize a câmera/microfone quando precisar desses recursos e use a navegação inferior para acessar calendário, recentes, pastas e ajustes.
+5. Use **Sair** para encerrar a sessão.
+
+Para avaliar a versão publicada, basta um navegador e conexão à internet: não é necessário instalar o projeto nem o PWA. As instruções de instalação abaixo existem para permitir que o professor também execute o código em outra máquina, conforme exigido pelo enunciado.
+
+O arquivo para envio está em **`entrega/insight-sprint4.zip`**. O link do repositório é https://github.com/jovi-insight/frontend-next.
 
 ## Tecnologias e organização
 
